@@ -11,7 +11,8 @@ Lightweight, command-line, rpn calculator.
 * If there are insufficient values on the stack for an operation, zero is assumed.
 
 ### Example
-```rpn
+```
+rpn
 ()
 > 1
 (1.00000)
@@ -22,8 +23,9 @@ Lightweight, command-line, rpn calculator.
 >
 ```
 
-Note that "internal" commands follow the same rules:
-```rpn
+Note that "internal" commands use the stack and follow the same rules:
+```
+rpn
 ()
 > 24
 (24.00000)
