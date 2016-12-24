@@ -30,7 +30,8 @@
 
 (define (process command stack)
   (let ((x (nz-car stack))
-        (y (nz-car (nz-cdr stack))))
+        (y (nz-car (nz-cdr stack)))
+        (z (nz-car (nz-cdr (nz-cdr stack)))))
     (cond
 
       ;; operations {{{1
@@ -39,12 +40,15 @@
         [(equal? command "*") (loop (cons (* y x) (nz-cdr stack 2)))]
         [(equal? command "/") (loop (cons (/ y x) (nz-cdr stack 2)))]
         [(equal? command "chs") (loop (cons (* -1 x) (nz-cdr stack 2)))]
-        [(equal? command "1/x") (loop (cons (/ 1 x) (nz-cdr stack 2)))]
+        [(or (equal? command "1/x") 
+             (equal? command "inv")) (loop (cons (/ 1 x) (nz-cdr stack 2)))]
         [(equal? command "sqrt") (loop (cons (sqrt x) (nz-cdr stack)))]
-        [(equal? command "expt") (loop (cons (expt y x) (nz-cdr stack 2)))]
+        [(or (equal? command "pow") 
+             (equal? command "expt")) (loop (cons (expt y x) (nz-cdr stack 2)))]
         [(equal? command "abs") (loop (cons (abs x) (nz-cdr stack)))]
         [(equal? command "log") (loop (cons (log x) (nz-cdr stack)))]
         [(equal? command "log10") (loop (cons (log x 10) (nz-cdr stack)))]
+        [(equal? command "logx") (loop (cons (log y x) (nz-cdr stack 2)))]
         [(equal? command "exp") (loop (cons (exp x) (nz-cdr stack)))]
         [(equal? command "sin") (loop (cons (sin (* drg x)) (nz-cdr stack)))]
         [(equal? command "cos") (loop (cons (cos (* drg x)) (nz-cdr stack)))]
@@ -52,7 +56,18 @@
         [(equal? command "asin") (loop (cons (/ (asin x) drg) (nz-cdr stack)))]
         [(equal? command "acos") (loop (cons (/ (acos x) drg) (nz-cdr stack)))]
         [(equal? command "atan") (loop (cons (/ (atan x) drg) (nz-cdr stack)))]
+        [(equal? command "atan2") (loop (cons (/ (atan y x) drg) (nz-cdr stack 2)))]
         [(equal? command "mod") (loop (cons (modulo y x) (nz-cdr stack 2)))]
+        ;; }}}
+
+      ;; conversions {{{1
+        [(or (equal? command "dms->deg") (equal? command "hms->hr"))
+            (loop (cons (+ x (/ y 60) (/ z 3600)) (nz-cdr stack 3)))]
+        [(or (equal? command "deg->dms") (equal? command "hr->hms")) 
+            (let* ((fx (floor (abs x)))
+                   (fy (floor (* 60 (- (abs x) fx))))
+                   (fz (- (abs x) fx (/ fy 60))))
+                (loop (append (list fx fy (* 3600 fz)) (nz-cdr stack))))]
       ;; }}}
 
         ;; list operations {{{1
