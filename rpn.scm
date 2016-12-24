@@ -1,4 +1,4 @@
-(use fmt numbers)
+(use fmt numbers posix)
 
 ;;; constants {{{1
 (define PI 3.141592653589793)
@@ -107,20 +107,23 @@
         ;; }}}
 
         [else  ;; exit
-               (fmt #t (radix rpn-radix (fix scale (exact->inexact (nz-car stack)))) nl)]
+               (fmt #t "========" nl (radix rpn-radix (fix scale (exact->inexact (nz-car stack)))) nl)]
     )))
 
 ;; main loop {{{1
 (define (loop stack)
-  (fmt #t (radix rpn-radix 
-                 (fix scale 
-                      (pretty 
-                        (map exact->inexact stack)))) "> ")
-  (let* ((line (read-line))
-         (val (string->number line)))
-    (if val  
-       (loop (cons val stack))
-       (process line stack))))
+  (when (terminal-port? (current-input-port))
+      (fmt #t (radix rpn-radix 
+                     (fix scale 
+                          (pretty 
+                            (map exact->inexact stack)))) "> "))
+  (let ((line (read-line)))
+    (if (eof-object? line)
+        (fmt #t (radix rpn-radix (fix scale (exact->inexact (nz-car stack)))) nl)
+        (let ((val (string->number line)))
+            (if val
+                (loop (cons val stack))
+                (process line stack))))))
 ;; }}}
 
 (loop '())

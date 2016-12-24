@@ -1,7 +1,7 @@
 # rpn
-Command line rpn calc
+A lightweight, command-line, rpn calculator.
 
-Lightweight, command-line, rpn calculator.
+
 
 ## Usage
 
