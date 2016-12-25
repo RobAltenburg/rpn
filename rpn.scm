@@ -1,9 +1,11 @@
 (use fmt numbers posix)
 
+;; error handler {{{1
 (define (check thunk y)
   (condition-case (thunk)
                   [(exn arithmetic) (fmt #t "Arithmetic Error" nl) y]
                   [(exn) (fmt #t "Other error") y]))
+;; }}}
 
 ;;; constants {{{1
 (define PI 3.141592653589793)
@@ -94,8 +96,11 @@
 
         ;; memory {{{1
         ;; valid slots are 0..10  other references are mod 10
-        [(equal? command "ms") (vector-set! memory (modulo x 10) y) (loop (nz-cdr stack))]
-        [(equal? command "m") (loop (cons (vector-ref memory (modulo x 10)) (nz-cdr stack)))]
+        ;; using y(ank) or p(ut) defaults to slot 0
+        [(equal? command "y") (vector-set! memory 0 x) (loop stack)]
+        [(equal? command "yx") (vector-set! memory (modulo x 10) y) (loop (nz-cdr stack))]
+        [(equal? command "p") (loop (cons (vector-ref memory 0) stack))]
+        [(equal? command "px") (loop (cons (vector-ref memory (modulo x 10)) (nz-cdr stack)))]
         ;; }}}
 
         ;; change behavior {{{1
