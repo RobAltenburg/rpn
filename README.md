@@ -7,7 +7,7 @@ A lightweight, command-line, rpn calculator.
 
 * Entering a number pushes it on the stack.
 * Entering a command manipulates the stack.
-* Entering a non-numeric non-command prints the first value of the stack and exits.
+* Entering "q" quits.
 * If there are insufficient values on the stack for an operation, zero is assumed.
 
 ### Example

@@ -122,8 +122,12 @@
         [(equal? command "cdr") (loop (nz-cdr stack))] ;; rest
         ;; }}}
 
-        [else  ;; exit
+        [(equal? command "q")
                (fmt #t "========" nl (radix rpn-radix (fix scale (exact->inexact (nz-car stack)))) nl)]
+
+        [else  ;; exit
+               (fmt #t "bad command" nl)
+               (loop stack)]
     )))
 
 ;; main loop {{{1
