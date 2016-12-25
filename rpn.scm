@@ -1,5 +1,10 @@
 (use fmt numbers posix)
 
+(define (check thunk y)
+  (condition-case (thunk)
+                  [(exn arithmetic) (fmt #t "Arithmetic Error" nl) y]
+                  [(exn) (fmt #t "Other error") y]))
+
 ;;; constants {{{1
 (define PI 3.141592653589793)
 (define E 2.7182818284590452)
@@ -38,12 +43,15 @@
         [(equal? command "+") (loop (cons (+ y x) (nz-cdr stack 2)))]
         [(equal? command "-") (loop (cons (- y x) (nz-cdr stack 2)))]
         [(equal? command "*") (loop (cons (* y x) (nz-cdr stack 2)))]
-        [(equal? command "/") (loop (cons (/ y x) (nz-cdr stack 2)))]
+        [(equal? command "/") (loop (cons 
+             (check (lambda () (/ y x)) y) (nz-cdr stack 2)))]
         [(equal? command "chs") (loop (cons (* -1 x) (nz-cdr stack 2)))]
         [(or (equal? command "1/x") 
-             (equal? command "inv")) (loop (cons (/ 1 x) (nz-cdr stack 2)))]
+             (equal? command "inv")) (loop (cons 
+                (check (lambda () (/ 1 x)) y) (nz-cdr stack 2)))]
         [(equal? command "sqrt") (loop (cons (sqrt x) (nz-cdr stack)))]
         [(or (equal? command "pow") 
+             (equal? command "**") 
              (equal? command "expt")) (loop (cons (expt y x) (nz-cdr stack 2)))]
         [(equal? command "abs") (loop (cons (abs x) (nz-cdr stack)))]
         [(equal? command "log") (loop (cons (log x) (nz-cdr stack)))]
@@ -52,12 +60,15 @@
         [(equal? command "exp") (loop (cons (exp x) (nz-cdr stack)))]
         [(equal? command "sin") (loop (cons (sin (* drg x)) (nz-cdr stack)))]
         [(equal? command "cos") (loop (cons (cos (* drg x)) (nz-cdr stack)))]
-        [(equal? command "tan") (loop (cons (tan (* drg x)) (nz-cdr stack)))]
+        [(equal? command "tan") (loop (cons 
+                (check (lambda () (tan (* drg x))) x) (nz-cdr stack )))]
         [(equal? command "asin") (loop (cons (/ (asin x) drg) (nz-cdr stack)))]
         [(equal? command "acos") (loop (cons (/ (acos x) drg) (nz-cdr stack)))]
         [(equal? command "atan") (loop (cons (/ (atan x) drg) (nz-cdr stack)))]
         [(equal? command "atan2") (loop (cons (/ (atan y x) drg) (nz-cdr stack 2)))]
-        [(equal? command "mod") (loop (cons (modulo y x) (nz-cdr stack 2)))]
+        [(equal? command "mod") (loop (cons 
+                (check (lambda () (modulo y x)) y) (nz-cdr stack 2)))]
+
         ;; }}}
 
       ;; conversions {{{1
