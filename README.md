@@ -1,8 +1,6 @@
 # rpn
 A lightweight, command-line, rpn calculator.
 
-
-
 ## Usage
 
 * Entering a number pushes it on the stack.

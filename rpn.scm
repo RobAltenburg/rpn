@@ -1,3 +1,10 @@
+;;;
+;;; rpn
+;;; A lightweight, command-line, rpn calculator
+;;;
+;;; Rob Altenburg -- 12/2016
+;;;
+
 (use fmt numbers posix)
 
 ;; error handler {{{1
@@ -42,92 +49,89 @@
     (cond
 
       ;; operations {{{1
-        [(equal? command "+") (loop (cons (+ y x) (nz-cdr stack 2)))]
-        [(equal? command "-") (loop (cons (- y x) (nz-cdr stack 2)))]
-        [(equal? command "*") (loop (cons (* y x) (nz-cdr stack 2)))]
-        [(equal? command "/") (loop (cons 
-             (check (lambda () (/ y x)) y) (nz-cdr stack 2)))]
-        [(equal? command "chs") (loop (cons (* -1 x) (nz-cdr stack 2)))]
+        [(equal? command "+") (cons (+ y x) (nz-cdr stack 2))]
+        [(equal? command "-") (cons (- y x) (nz-cdr stack 2))]
+        [(equal? command "*") (cons (* y x) (nz-cdr stack 2))]
+        [(equal? command "/") (cons 
+             (check (lambda () (/ y x)) y) (nz-cdr stack 2))]
+        [(equal? command "chs") (cons (* -1 x) (nz-cdr stack 2))]
         [(or (equal? command "1/x") 
-             (equal? command "inv")) (loop (cons 
-                (check (lambda () (/ 1 x)) y) (nz-cdr stack 2)))]
-        [(equal? command "sqrt") (loop (cons (sqrt x) (nz-cdr stack)))]
+             (equal? command "inv")) (cons 
+                (check (lambda () (/ 1 x)) y) (nz-cdr stack 2))]
+        [(equal? command "sqrt") (cons (sqrt x) (nz-cdr stack))]
         [(or (equal? command "pow") 
              (equal? command "**") 
-             (equal? command "expt")) (loop (cons (expt y x) (nz-cdr stack 2)))]
-        [(equal? command "abs") (loop (cons (abs x) (nz-cdr stack)))]
-        [(equal? command "log") (loop (cons (log x) (nz-cdr stack)))]
-        [(equal? command "log10") (loop (cons (log x 10) (nz-cdr stack)))]
-        [(equal? command "logx") (loop (cons (log y x) (nz-cdr stack 2)))]
-        [(equal? command "exp") (loop (cons (exp x) (nz-cdr stack)))]
-        [(equal? command "sin") (loop (cons (sin (* drg x)) (nz-cdr stack)))]
-        [(equal? command "cos") (loop (cons (cos (* drg x)) (nz-cdr stack)))]
-        [(equal? command "tan") (loop (cons 
-                (check (lambda () (tan (* drg x))) x) (nz-cdr stack )))]
-        [(equal? command "asin") (loop (cons (/ (asin x) drg) (nz-cdr stack)))]
-        [(equal? command "acos") (loop (cons (/ (acos x) drg) (nz-cdr stack)))]
-        [(equal? command "atan") (loop (cons (/ (atan x) drg) (nz-cdr stack)))]
-        [(equal? command "atan2") (loop (cons (/ (atan y x) drg) (nz-cdr stack 2)))]
-        [(equal? command "mod") (loop (cons 
-                (check (lambda () (modulo y x)) y) (nz-cdr stack 2)))]
+             (equal? command "expt")) (cons (expt y x) (nz-cdr stack 2))]
+        [(equal? command "abs") (cons (abs x) (nz-cdr stack))]
+        [(equal? command "log") (cons (log x) (nz-cdr stack))]
+        [(equal? command "log10") (cons (log x 10) (nz-cdr stack))]
+        [(equal? command "logx") (cons (log y x) (nz-cdr stack 2))]
+        [(equal? command "exp") (cons (exp x) (nz-cdr stack))]
+        [(equal? command "sin") (cons (sin (* drg x)) (nz-cdr stack))]
+        [(equal? command "cos") (cons (cos (* drg x)) (nz-cdr stack))]
+        [(equal? command "tan") (cons 
+                (check (lambda () (tan (* drg x))) x) (nz-cdr stack ))]
+        [(equal? command "asin") (cons (/ (asin x) drg) (nz-cdr stack))]
+        [(equal? command "acos") (cons (/ (acos x) drg) (nz-cdr stack))]
+        [(equal? command "atan") (cons (/ (atan x) drg) (nz-cdr stack))]
+        [(equal? command "atan2") (cons (/ (atan y x) drg) (nz-cdr stack 2))]
+        [(equal? command "mod") (cons 
+                (check (lambda () (modulo y x)) y) (nz-cdr stack 2))]
 
         ;; }}}
 
       ;; conversions {{{1
         [(or (equal? command "dms->deg") (equal? command "hms->hr"))
-            (loop (cons (+ x (/ y 60) (/ z 3600)) (nz-cdr stack 3)))]
+            (cons (+ x (/ y 60) (/ z 3600)) (nz-cdr stack 3))]
         [(or (equal? command "deg->dms") (equal? command "hr->hms")) 
             (let* ((fx (floor (abs x)))
                    (fy (floor (* 60 (- (abs x) fx))))
                    (fz (- (abs x) fx (/ fy 60))))
-                (loop (append (list fx fy (* 3600 fz)) (nz-cdr stack))))]
+                (append (list fx fy (* 3600 fz)) (nz-cdr stack)))]
       ;; }}}
 
         ;; list operations {{{1
-        [(equal? command "sum") (loop (list (fold + 0 stack)))]
-        [(equal? command "product") (loop (list (fold * 0 stack)))]
-        [(equal? command "reverse") (loop (reverse stack))]
+        [(equal? command "sum") (list (fold + 0 stack))]
+        [(equal? command "product") (list (fold * 0 stack))]
+        [(equal? command "reverse") (reverse stack)]
         ;; }}}
 
         ;; constatants {{{1
-        [(equal? command "pi") (loop (cons PI stack))]
-        [(equal? command "e") (loop (cons E stack))]
+        [(equal? command "pi") (cons PI stack)]
+        [(equal? command "e") (cons E stack)]
         ;; }}}
 
         ;; memory {{{1
         ;; valid slots are 0..10  other references are mod 10
         ;; using y(ank) or p(ut) defaults to slot 0
-        [(equal? command "y") (vector-set! memory 0 x) (loop stack)]
-        [(equal? command "yx") (vector-set! memory (modulo x 10) y) (loop (nz-cdr stack))]
-        [(equal? command "p") (loop (cons (vector-ref memory 0) stack))]
-        [(equal? command "px") (loop (cons (vector-ref memory (modulo x 10)) (nz-cdr stack)))]
+        [(equal? command "y") (vector-set! memory 0 x) stack]
+        [(equal? command "yx") (vector-set! memory (modulo x 10) y) (nz-cdr stack)]
+        [(equal? command "p") (cons (vector-ref memory 0) stack)]
+        [(equal? command "px") (cons (vector-ref memory (modulo x 10)) (nz-cdr stack))]
         ;; }}}
 
         ;; change behavior {{{1
-        [(equal? command "scale") (set! scale x) (loop (nz-cdr stack))]
-        [(equal? command "radix") (set! rpn-radix x) (loop (nz-cdr stack))]
-        [(equal? command "bin") (set! rpn-radix 2) (loop stack)]
-        [(equal? command "hex") (set! rpn-radix 16) (loop stack)]
-        [(equal? command "dec") (set! rpn-radix 10) (loop stack)]
-        [(equal? command "rad") (set! drg 1) (loop stack)]
-        [(equal? command "deg") (set! drg DEG2RAD) (loop stack)]
-        [(equal? command "grd") (set! drg GRD2RAD) (loop stack)]
+        [(equal? command "scale") (set! scale x) (nz-cdr stack)]
+        [(equal? command "radix") (set! rpn-radix x) (nz-cdr stack)]
+        [(equal? command "bin") (set! rpn-radix 2) stack]
+        [(equal? command "hex") (set! rpn-radix 16) stack]
+        [(equal? command "dec") (set! rpn-radix 10) stack]
+        [(equal? command "rad") (set! drg 1) stack]
+        [(equal? command "deg") (set! drg DEG2RAD) stack]
+        [(equal? command "grd") (set! drg GRD2RAD) stack]
         ;; }}}
 
         ;; directly manipulate stack {{{1
-        [(equal? command "inexact") (loop (map exact->inexact stack))]
-        [(equal? command "r") (loop (nz-cdr stack))] ;; roll or left shift the list
-        [(equal? command "c") (loop '(0))] ;; clear stack
-        [(equal? command "car") (loop (list (car stack)))] ;; first 
-        [(equal? command "cdr") (loop (nz-cdr stack))] ;; rest
+        [(equal? command "inexact") (map exact->inexact stack)]
+        [(equal? command "r") (nz-cdr stack)] ;; roll or left shift the list
+        [(equal? command "c") '(0)] ;; clear stack
+        [(equal? command "car") (list (car stack))] ;; first 
+        [(equal? command "cdr") (nz-cdr stack)] ;; rest
         ;; }}}
-
-        [(equal? command "q")
-               (fmt #t "========" nl (radix rpn-radix (fix scale (exact->inexact (nz-car stack)))) nl)]
-
-        [else  ;; exit
+        
+		[else  ;; exit
                (fmt #t "bad command" nl)
-               (loop stack)]
+               stack]
     )))
 
 ;; main loop {{{1
@@ -138,12 +142,16 @@
                           (pretty 
                             (map exact->inexact stack)))) "> "))
   (let ((line (read-line)))
-    (if (eof-object? line)
-        (fmt #t (radix rpn-radix (fix scale (exact->inexact (nz-car stack)))) nl)
-        (let ((val (string->number line)))
+	(cond
+		[(equal? line "q")
+				(fmt #t (radix rpn-radix (fix scale (exact->inexact (nz-car stack)))) nl)]
+		[(eof-object? line)
+				(fmt #t (radix rpn-radix (fix scale (exact->inexact (nz-car stack)))) nl)]
+        [else
+		  (let ((val (string->number line)))
             (if val
                 (loop (cons val stack))
-                (process line stack))))))
+                (loop (process line stack))))])))
 ;; }}}
 
 (loop '())
