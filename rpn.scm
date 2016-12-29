@@ -5,30 +5,31 @@
 ;;; Rob Altenburg -- 12/2016
 ;;;
 
-(use fmt numbers posix)
+(use fmt numbers posix ncurses)
 
 ;; error handler {{{1
 (define (check thunk y)
+  (clr-error)
   (condition-case (thunk)
-                  [(exn arithmetic) (fmt #t "Arithmetic Error" nl) y]
-                  [(exn) (fmt #t "Other error") y]))
+                  [(exn arithmetic) (printw "Arithmetic Error") (refresh) y]
+                  [(exn) (printw "Other error") (refresh) y]))
 ;; }}}
 
-;;; constants {{{1
+;;; Constants {{{1
 (define PI 3.141592653589793)
 (define E 2.7182818284590452)
 (define DEG2RAD (/ PI 180))
 (define GRD2RAD (/ PI 200))
 ;;; }}}
 
-;;; behavior {{{1
+;;; Global Behavior Settings {{{1
 (define scale 5)
 (define rpn-radix 10)
 (define drg DEG2RAD)
 (define memory (make-vector 11 0))
 ;;; }}}
 
-;;; stack functions {{{1
+;;; Stack Functions {{{1
 ;; make sure the stack is never empty
 (define (nz-car stack)
   (if (equal? '() stack)
@@ -42,13 +43,14 @@
     [else (nz-cdr (cdr stack) (- depth 1))]))
 ;;; }}}
 
+;;; Process Commands {{{1
 (define (process command stack)
   (let ((x (nz-car stack))
         (y (nz-car (nz-cdr stack)))
         (z (nz-car (nz-cdr (nz-cdr stack)))))
     (cond
-
-      ;; operations {{{1
+	    [(equal? command "") stack] ;; nop
+      ;; operations {{{2
         [(equal? command "+") (cons (+ y x) (nz-cdr stack 2))]
         [(equal? command "-") (cons (- y x) (nz-cdr stack 2))]
         [(equal? command "*") (cons (* y x) (nz-cdr stack 2))]
@@ -80,7 +82,7 @@
 
         ;; }}}
 
-      ;; conversions {{{1
+      ;; conversions {{{2
         [(or (equal? command "dms->deg") (equal? command "hms->hr"))
             (cons (+ x (/ y 60) (/ z 3600)) (nz-cdr stack 3))]
         [(or (equal? command "deg->dms") (equal? command "hr->hms")) 
@@ -90,18 +92,18 @@
                 (append (list fx fy (* 3600 fz)) (nz-cdr stack)))]
       ;; }}}
 
-        ;; list operations {{{1
+        ;; list operations {{{2
         [(equal? command "sum") (list (fold + 0 stack))]
         [(equal? command "product") (list (fold * 0 stack))]
         [(equal? command "reverse") (reverse stack)]
         ;; }}}
 
-        ;; constatants {{{1
+        ;; constatants {{{2
         [(equal? command "pi") (cons PI stack)]
         [(equal? command "e") (cons E stack)]
         ;; }}}
 
-        ;; memory {{{1
+        ;; memory {{{2
         ;; valid slots are 0..10  other references are mod 10
         ;; using y(ank) or p(ut) defaults to slot 0
         [(equal? command "y") (vector-set! memory 0 x) stack]
@@ -110,7 +112,7 @@
         [(equal? command "px") (cons (vector-ref memory (modulo x 10)) (nz-cdr stack))]
         ;; }}}
 
-        ;; change behavior {{{1
+        ;; change behavior {{{2
         [(equal? command "scale") (set! scale x) (nz-cdr stack)]
         [(equal? command "radix") (set! rpn-radix x) (nz-cdr stack)]
         [(equal? command "bin") (set! rpn-radix 2) stack]
@@ -121,38 +123,98 @@
         [(equal? command "grd") (set! drg GRD2RAD) stack]
         ;; }}}
 
-        ;; directly manipulate stack {{{1
+        ;; directly manipulate stack {{{2
         [(equal? command "inexact") (map exact->inexact stack)]
         [(equal? command "r") (nz-cdr stack)] ;; roll or left shift the list
         [(equal? command "c") '(0)] ;; clear stack
         [(equal? command "car") (list (car stack))] ;; first 
         [(equal? command "cdr") (nz-cdr stack)] ;; rest
         ;; }}}
-        
+
+		;; exit {{{2
 		[else  ;; exit
-               (fmt #t "bad command" nl)
+               (clr-error)
+			   (printw "bad command")
+			   (refresh)
                stack]
     )))
+		;;}}}
+;;}}}
+
+;;; ncurses: Position Routines {{{1
+(define (clr-stack)
+  (move 1 1)
+  (clrtoeol))
+
+(define (clr-entry)
+  (move 2 2)
+  (clrtoeol))
+
+(define (clr-error)
+  (move 3 2)
+  (clrtoeol))
+
+;;;}}}
+
+;;; ncurses read char {{{1
+;;; allow certain operations to avoid the need to hit [return]
+(define (read-char-ncurses stack #!optional (str ""))
+  (clr-entry)
+  (printw str)
+  (refresh)
+  (let ((char (getch)))
+	(cond
+	  [(equal? #\return char) str]
+	  [(equal? #\delete char) 
+				(read-char-ncurses stack 
+				  (string-drop-right str 1))]
+	  [(equal? #\space char) str]
+	  [(equal? #\+ char) (loop (process "+" (dispatch str stack)))]
+	  [(equal? #\* char) (loop (process "*" (dispatch str stack)))]
+	  [(equal? #\/ char) (loop (process "/" (dispatch str stack)))]
+	  [(equal? #\- char) (loop (process "-" (dispatch str stack)))]
+	  [else
+		(clr-error)
+		(read-char-ncurses stack (string-append str (string char)))])))
+;; }}}
+
+(define (dispatch line stack)
+    (let ((val (string->number line)))
+        (if val
+            (cons val stack)
+            (process line stack))))
+;; }
 
 ;; main loop {{{1
 (define (loop stack)
   (when (terminal-port? (current-input-port))
-      (fmt #t (radix rpn-radix 
+      (clr-stack)
+      (printw (fmt #f (radix rpn-radix 
                      (fix scale 
                           (pretty 
-                            (map exact->inexact stack)))) "> "))
-  (let ((line (read-line)))
+                            (map exact->inexact stack)))) "> ")))
+      (refresh)
+  (let ((line (read-char-ncurses stack)))
 	(cond
-		[(equal? line "q")
-				(fmt #t (radix rpn-radix (fix scale (exact->inexact (nz-car stack)))) nl)]
-		[(eof-object? line)
-				(fmt #t (radix rpn-radix (fix scale (exact->inexact (nz-car stack)))) nl)]
-        [else
-		  (let ((val (string->number line)))
-            (if val
-                (loop (cons val stack))
-                (loop (process line stack))))])))
+		[(equal? line "q") stack]
+		[(eof-object? line) stack]
+        [else (loop (dispatch line stack))])))
 ;; }}}
 
-(loop '())
+(initscr)
+(noecho)
+(raw) (nonl)
+(keypad (stdscr) #t)
+(printw "rpn\n")
+(refresh)
+
+(define retvar (loop '()))
+
+(endwin)
+
+(fmt #t retvar) 
+;(fmt #t (radix rpn-radix (fix scale (exact->inexact (nz-car retvar)))))
+(newline)
+
+
 
