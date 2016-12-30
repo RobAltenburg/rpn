@@ -41,6 +41,7 @@
 (define scale 5)
 (define rpn-radix 10)
 (define drg DEG2RAD)
+(define xl #f) ; exit with full stack
 (define memory (make-vector 11 0))
 ;;; }}}
 
@@ -135,6 +136,7 @@
         [(equal? command "rad") (set! drg 1) stack]
         [(equal? command "deg") (set! drg DEG2RAD) stack]
         [(equal? command "grd") (set! drg GRD2RAD) stack]
+        [(equal? command "xl") (set! xl (not xl)) stack]
         ;; }}}
 
         ;; directly manipulate stack {{{2
@@ -225,5 +227,8 @@
 (define retvar (loop))
 (endwin)
 
-(fmt #t (radix rpn-radix (fix scale (exact->inexact (nz-car retvar)))))
+(if xl
+(fmt #t 
+     (map exact->inexact retvar))
+(fmt #t (radix rpn-radix (fix scale (exact->inexact (nz-car retvar))))))
 (newline)
