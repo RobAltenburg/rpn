@@ -10,7 +10,7 @@
 (define (print-help-string)
   (move 4 0)
   (printw "Operators: ")
-  (printw "+ - * / inv sqrt pow ** expt abs log log10 logx exp~%")
+  (printw "+ - * / inv sqrt pow expt abs log log10 logx exp~%")
   (printw "    sin cos tan asin acos atan atan2 mod hms2hr hr2hms ~%")
   (printw "Stack Operations: sum product mean reverse~%")
   (printw "Constants: pi e~%")
@@ -74,7 +74,6 @@
                 (check (lambda () (/ 1 x)) y) (nz-cdr stack 2))]
         [(equal? command "sqrt") (cons (sqrt x) (nz-cdr stack))]
         [(or (equal? command "pow") 
-             (equal? command "**") 
              (equal? command "expt")) (cons (expt y x) (nz-cdr stack 2))]
         [(equal? command "abs") (cons (abs x) (nz-cdr stack))]
         [(equal? command "log") (cons (log x) (nz-cdr stack))]
