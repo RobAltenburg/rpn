@@ -206,7 +206,8 @@
       (printw (fmt #f (radix rpn-radix 
                      (fix scale 
                           (pretty 
-                            (map exact->inexact stack)))) "> ")))
+                            (map exact->inexact stack))))))
+	  (move 2 0) (clrtoeol) (printw "> "))
       (refresh)
   (let* ((stk (read-char-ncurses stack))
 		 (line (nz-car stk)))
@@ -218,7 +219,7 @@
 
 (initscr) (noecho) (raw) (nonl)
 (keypad (stdscr) #t)
-(printw "rpn\n") (refresh)
+(printw "rpn -----------") (refresh)
 (define retvar (loop))
 (endwin)
 
