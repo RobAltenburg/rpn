@@ -7,7 +7,20 @@
 
 (use fmt numbers posix ncurses)
 
-;; error handler {{{1
+(define (print-help-string)
+  (move 4 1)
+  (printw "Operators: ")
+  (printw "+ - * / chs 1/x inv sqrt pow ** expt abs log log10 logx exp~%")
+  (printw "		sin cos tan asin acos atan atan2 mod hms->hr hr->hms ~%")
+  (printw "Stack Operations: sum product reverse~%")
+  (printw "Constants: pi e~%")
+  (printw "Memory: y yx p px~%")
+  (printw "Display Behavior: scale radix bin hex dec~%")
+  (printw "Conversions: rad deg grd~%")
+  (printw "Manipulate Stack: inexact reverse r c car cdr~%")
+  (refresh))
+
+;;; Error Handler {{{1
 (define (check thunk y)
   (clr-error)
   (condition-case (thunk)
@@ -126,20 +139,22 @@
 
         ;; directly manipulate stack {{{2
         [(equal? command "inexact") (map exact->inexact stack)]
+        [(equal? command "reverse") (reverse stack)]
         [(equal? command "r") (nz-cdr stack)] ;; roll or left shift the list
         [(equal? command "c") '(0)] ;; clear stack
         [(equal? command "car") (list (car stack))] ;; first 
         [(equal? command "cdr") (nz-cdr stack)] ;; rest
         ;; }}}
 
-		;; exit {{{2
+		;; Miax. 
+        [(equal? command "help") (print-help-string) stack] ;; rest
 		[else  ;; exit
                (clr-error)
 			   (printw "bad command")
 			   (refresh)
                stack]
     )))
-		;;}}}
+		;
 ;;}}}
 
 ;;; ncurses: Position Routines {{{1
@@ -157,12 +172,10 @@
 
 ;;;}}}
 
-;;; ncurses read char {{{1
+;;; read-char-ncurses {{{1
 ;;; allow certain operations to avoid the need to hit [return]
 (define (read-char-ncurses stack #!optional (str ""))
-  (clr-entry)
-  (printw str)
-  (refresh)
+  (clr-entry) (printw str) (refresh)
   (let ((char (getch)))
 	(cond
 	  [(equal? #\return char) (cons str stack)]
@@ -180,14 +193,15 @@
 		(read-char-ncurses stack (string-append str (string char)))])))
 ;; }}}
 
+;;; Dispatch {{{1
 (define (dispatch line stack)
     (let ((val (string->number line)))
         (if val
             (cons val stack)
             (process line stack))))
-;; }
+;;; }}}
 
-;; main loop {{{1
+;;; Main Loop {{{1
 (define (loop #!optional (stack '()))
   (when (terminal-port? (current-input-port))
       (clr-stack)
@@ -204,19 +218,11 @@
         [else (loop (dispatch line (nz-cdr stk)))])))
 ;; }}}
 
-(initscr)
-(noecho)
-(raw) (nonl)
+(initscr) (noecho) (raw) (nonl)
 (keypad (stdscr) #t)
-(printw "rpn\n")
-(refresh)
-
+(printw "rpn\n") (refresh)
 (define retvar (loop))
-
 (endwin)
 
 (fmt #t (radix rpn-radix (fix scale (exact->inexact (nz-car retvar)))))
 (newline)
-
-
-
