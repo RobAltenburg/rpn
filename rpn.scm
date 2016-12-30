@@ -7,6 +7,7 @@
 
 (use fmt numbers posix ncurses)
 
+;;; Help {{{1
 (define (print-help-string)
   (move 4 0)
   (printw "Operators: ")
@@ -19,6 +20,7 @@
   (printw "Conversions: rad deg grd~%")
   (printw "Manipulate Stack: inexact reverse r c car cdr~%")
   (refresh))
+;;;}}}
 
 ;;; Error Handler {{{1
 (define (check thunk y)
