@@ -41,6 +41,7 @@
     [(equal? '() stack) '()]
     [(equal? 1 depth) (cdr stack)]
     [else (nz-cdr (cdr stack) (- depth 1))]))
+
 ;;; }}}
 
 ;;; Process Commands {{{1
@@ -164,15 +165,16 @@
   (refresh)
   (let ((char (getch)))
 	(cond
-	  [(equal? #\return char) str]
+	  [(equal? #\return char) (cons str stack)]
 	  [(equal? #\delete char) 
 				(read-char-ncurses stack 
 				  (string-drop-right str 1))]
-	  [(equal? #\space char) str]
-	  [(equal? #\+ char) (loop (process "+" (dispatch str stack)))]
-	  [(equal? #\* char) (loop (process "*" (dispatch str stack)))]
-	  [(equal? #\/ char) (loop (process "/" (dispatch str stack)))]
-	  [(equal? #\- char) (loop (process "-" (dispatch str stack)))]
+	  [(equal? #\space char) (cons str stack)]
+	  [(equal? #\+ char) (cons "+" (if (equal? "" str) stack (dispatch str stack)))] 
+	  [(equal? #\* char) (cons "*" (if (equal? "" str) stack (dispatch str stack)))] 
+	  [(equal? #\/ char) (cons "/" (if (equal? "" str) stack (dispatch str stack)))] 
+	  [(equal? #\- char) (cons "-" (if (equal? "" str) stack (dispatch str stack)))] 
+	  [(equal? #\q char) (cons "q" stack)] 
 	  [else
 		(clr-error)
 		(read-char-ncurses stack (string-append str (string char)))])))
@@ -186,7 +188,7 @@
 ;; }
 
 ;; main loop {{{1
-(define (loop stack)
+(define (loop #!optional (stack '()))
   (when (terminal-port? (current-input-port))
       (clr-stack)
       (printw (fmt #f (radix rpn-radix 
@@ -194,11 +196,12 @@
                           (pretty 
                             (map exact->inexact stack)))) "> ")))
       (refresh)
-  (let ((line (read-char-ncurses stack)))
+  (let* ((stk (read-char-ncurses stack))
+		 (line (nz-car stk)))
 	(cond
 		[(equal? line "q") stack]
 		[(eof-object? line) stack]
-        [else (loop (dispatch line stack))])))
+        [else (loop (dispatch line (nz-cdr stk)))])))
 ;; }}}
 
 (initscr)
@@ -208,12 +211,11 @@
 (printw "rpn\n")
 (refresh)
 
-(define retvar (loop '()))
+(define retvar (loop))
 
 (endwin)
 
-(fmt #t retvar) 
-;(fmt #t (radix rpn-radix (fix scale (exact->inexact (nz-car retvar)))))
+(fmt #t (radix rpn-radix (fix scale (exact->inexact (nz-car retvar)))))
 (newline)
 
 
