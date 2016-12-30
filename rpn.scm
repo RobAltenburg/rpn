@@ -8,11 +8,11 @@
 (use fmt numbers posix ncurses)
 
 (define (print-help-string)
-  (move 4 1)
+  (move 4 0)
   (printw "Operators: ")
-  (printw "+ - * / chs 1/x inv sqrt pow ** expt abs log log10 logx exp~%")
-  (printw "		sin cos tan asin acos atan atan2 mod hms->hr hr->hms ~%")
-  (printw "Stack Operations: sum product reverse~%")
+  (printw "+ - * / inv sqrt pow ** expt abs log log10 logx exp~%")
+  (printw "    sin cos tan asin acos atan atan2 mod hms2hr hr2hms ~%")
+  (printw "Stack Operations: sum product mean reverse~%")
   (printw "Constants: pi e~%")
   (printw "Memory: y yx p px~%")
   (printw "Display Behavior: scale radix bin hex dec~%")
@@ -70,9 +70,7 @@
         [(equal? command "*") (cons (* y x) (nz-cdr stack 2))]
         [(equal? command "/") (cons 
              (check (lambda () (/ y x)) y) (nz-cdr stack 2))]
-        [(equal? command "chs") (cons (* -1 x) (nz-cdr stack 2))]
-        [(or (equal? command "1/x") 
-             (equal? command "inv")) (cons 
+        [ (equal? command "inv") (cons 
                 (check (lambda () (/ 1 x)) y) (nz-cdr stack 2))]
         [(equal? command "sqrt") (cons (sqrt x) (nz-cdr stack))]
         [(or (equal? command "pow") 
@@ -97,9 +95,9 @@
         ;; }}}
 
       ;; conversions {{{2
-        [(or (equal? command "dms->deg") (equal? command "hms->hr"))
+        [(or (equal? command "dms2deg") (equal? command "hms2hr"))
             (cons (+ x (/ y 60) (/ z 3600)) (nz-cdr stack 3))]
-        [(or (equal? command "deg->dms") (equal? command "hr->hms")) 
+        [(or (equal? command "deg2dms") (equal? command "hr2hms")) 
             (let* ((fx (floor (abs x)))
                    (fy (floor (* 60 (- (abs x) fx))))
                    (fz (- (abs x) fx (/ fy 60))))
@@ -109,6 +107,7 @@
         ;; list operations {{{2
         [(equal? command "sum") (list (fold + 0 stack))]
         [(equal? command "product") (list (fold * 0 stack))]
+        [(equal? command "mean") (list (/ (fold + 0 stack) (length stack)))]
         [(equal? command "reverse") (reverse stack)]
         ;; }}}
 
