@@ -10,6 +10,7 @@
 
 ;;; Help {{{1
 (define (print-help-string)
+  (when is-terminal? ;; only show help in interactive mode
   (move 4 0)
   (printw "Operators: ")
   (printw "+ - * / inv sqrt pow expt abs log log10 logx exp~%")
@@ -20,15 +21,19 @@
   (printw "Display Behavior: scale radix bin hex dec~%")
   (printw "Conversions: rad deg grd~%")
   (printw "Manipulate Stack: inexact reverse r c car cdr~%")
-  (refresh))
+  (refresh)))
 ;;;}}}
 
 ;;; Error Handler {{{1
 (define (check thunk y)
-  (clr-error)
+  (if is-terminal?
+	(begin (clr-error)
   (condition-case (thunk)
                   [(exn arithmetic) (printw "Arithmetic Error") (refresh) y]
-                  [(exn) (printw "Other error") (refresh) y]))
+                  [(exn) (printw "Other error") (refresh) y])))
+  (condition-case (thunk)
+                  [(exn arithmetic) (display "Arithmetic Error") (newline) y]
+                  [(exn) (display "Other error") (newline) y]))
 ;; }}}
 
 ;;; Constants {{{1
@@ -151,10 +156,12 @@
 
 		;; Miax. 
         [(equal? command "help") (print-help-string) stack] ;; rest
-		[else  ;; exit
-               (clr-error)
-			   (printw "bad command")
-			   (refresh)
+		[else  ;; bad command
+		  (if is-terminal?
+			(begin 
+               (clr-error) (printw "bad command") (refresh))
+			(begin
+			  (display "bad command") (newline)))
                stack]
     )))
 		;
