@@ -7,6 +7,7 @@
 
 (use fmt numbers posix ncurses)
 
+
 ;;; Help {{{1
 (define (print-help-string)
   (move 4 0)
@@ -205,21 +206,27 @@
 
 ;;; Main Loop {{{1
 (define (loop #!optional (stack '()))
-  (when (terminal-port? (current-input-port))
+  (when is-terminal? 
       (clr-stack)
       (printw (fmt #f (radix rpn-radix 
                      (fix scale 
                           (pretty 
                             (map exact->inexact stack))))))
-	  (move 2 0) (clrtoeol) (printw "> "))
-      (refresh)
-  (let* ((stk (read-char-ncurses stack))
+	  (move 2 0) (clrtoeol) (printw "> ")
+      (refresh))
+  (let* ((stk (if is-terminal? 
+				(read-char-ncurses stack)
+				(cons (read-line) stack)))
 		 (line (nz-car stk)))
 	(cond
 		[(equal? line "q") stack]
 		[(eof-object? line) stack]
         [else (loop (dispatch line (nz-cdr stk)))])))
+
 ;; }}}
+
+(define is-terminal? (terminal-port? (current-input-port)))
+
 
 (initscr) (noecho) (raw) (nonl)
 (keypad (stdscr) #t)
