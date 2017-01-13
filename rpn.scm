@@ -65,6 +65,19 @@
     [else (nz-cdr (cdr stack) (- depth 1))]))
 
 ;;; }}}
+;; a-list for functions
+(define uniary
+  `((log ,log)
+    (log10 ,(lambda (x) (log x 10)))
+    (abs ,abs)
+    (exp ,exp)
+    (sqrt ,sqrt)
+    (sin ,(lambda (x) (sin (* drg x))))
+    (cos ,(lambda (x) (cos (* drg x))))
+    (asin ,(lambda (x) (/ (asin x) drg)))
+    (acos ,(lambda (x) (/ (acos x) drg)))
+    (atan ,(lambda (x) (/ (atan x) drg)))
+    ))
 
 ;;; Process Commands {{{1
 (define (process command stack)
@@ -79,23 +92,15 @@
         [(equal? command "*") (cons (* y x) (nz-cdr stack 2))]
         [(equal? command "/") (cons 
              (check (lambda () (/ y x)) y) (nz-cdr stack 2))]
-        [ (equal? command "inv") (cons 
+        [(equal? command "inv") (cons 
                 (check (lambda () (/ 1 x)) y) (nz-cdr stack 2))]
-        [(equal? command "sqrt") (cons (sqrt x) (nz-cdr stack))]
+        [(alist-ref (string->symbol command) uniary)
+            (cons ((car (alist-ref (string->symbol command) uniary)) x) (nz-cdr stack))]
         [(or (equal? command "pow") 
              (equal? command "expt")) (cons (expt y x) (nz-cdr stack 2))]
-        [(equal? command "abs") (cons (abs x) (nz-cdr stack))]
-        [(equal? command "log") (cons (log x) (nz-cdr stack))]
-        [(equal? command "log10") (cons (log x 10) (nz-cdr stack))]
         [(equal? command "logx") (cons (log y x) (nz-cdr stack 2))]
-        [(equal? command "exp") (cons (exp x) (nz-cdr stack))]
-        [(equal? command "sin") (cons (sin (* drg x)) (nz-cdr stack))]
-        [(equal? command "cos") (cons (cos (* drg x)) (nz-cdr stack))]
         [(equal? command "tan") (cons 
                 (check (lambda () (tan (* drg x))) x) (nz-cdr stack ))]
-        [(equal? command "asin") (cons (/ (asin x) drg) (nz-cdr stack))]
-        [(equal? command "acos") (cons (/ (acos x) drg) (nz-cdr stack))]
-        [(equal? command "atan") (cons (/ (atan x) drg) (nz-cdr stack))]
         [(equal? command "atan2") (cons (/ (atan y x) drg) (nz-cdr stack 2))]
         [(equal? command "mod") (cons 
                 (check (lambda () (modulo y x)) y) (nz-cdr stack 2))]
