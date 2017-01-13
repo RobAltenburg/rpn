@@ -196,7 +196,10 @@
 	  [(equal? #\+ char) (cons "+" (if (equal? "" str) stack (dispatch str stack)))] 
 	  [(equal? #\* char) (cons "*" (if (equal? "" str) stack (dispatch str stack)))] 
 	  [(equal? #\/ char) (cons "/" (if (equal? "" str) stack (dispatch str stack)))] 
-	  [(equal? #\- char) (cons "-" (if (equal? "" str) stack (dispatch str stack)))] 
+	  ;[(equal? #\- char) (cons "-" (if (equal? "" str) stack (dispatch str stack)))] 
+	  [(equal? #\- char) (if (equal? "" str) 
+		                (read-char-ncurses stack "-") 
+                                (cons "-" (dispatch str stack)))] 
 	  [(equal? #\q char) (cons "q" stack)] 
 	  [else
 		(clr-error)
@@ -233,7 +236,6 @@
 ;; }}}
 
 (define is-terminal? (terminal-port? (current-input-port)))
-
 
 (initscr) (noecho) (raw) (nonl)
 (keypad (stdscr) #t)
