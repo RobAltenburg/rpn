@@ -28,6 +28,9 @@
 ;;;}}}
 
 ;;; Non-Library Functions {{{
+;; for some reason, an error results when this
+;; is defined using as (gamma (+ x 1))
+;; for now, it forces integers
 (define (factorial x)
   (let ((i (floor x)))
   (if (zero? i)
