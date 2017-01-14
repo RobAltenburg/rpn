@@ -7,7 +7,6 @@
 
 (use fmt numbers posix ncurses)
 
-
 ;;; Help {{{1
 (define (print-help-string)
   (when is-terminal? ;; only show help in interactive mode
@@ -65,8 +64,15 @@
     [else (nz-cdr (cdr stack) (- depth 1))]))
 
 ;;; }}}
-;; a-list for functions
-(define uniary
+
+;;; Operator a-lists {{{1
+(define constants
+  `((pi ,PI)
+    (e ,E)
+    (p ,(vector-ref memory 0)) ; memory recall
+    ))
+
+(define uniary-operators
   `((log ,log)
     (log10 ,(lambda (x) (log x 10)))
     (abs ,abs)
@@ -74,10 +80,51 @@
     (sqrt ,sqrt)
     (sin ,(lambda (x) (sin (* drg x))))
     (cos ,(lambda (x) (cos (* drg x))))
+    (cos ,(lambda (x) (tan (* drg x))))
     (asin ,(lambda (x) (/ (asin x) drg)))
     (acos ,(lambda (x) (/ (acos x) drg)))
     (atan ,(lambda (x) (/ (atan x) drg)))
+    (inv ,(lambda (x) (/ 1 x)))
+    (px ,(lambda (x) (vector-ref memory (modulo x 10)))) ; memory recall
     ))
+
+(define binary-operators
+  `((+ ,+)
+    (- ,-)
+    (* ,*)
+    (/ ,/)
+    (expt ,expt)
+    (pow ,expt)
+    (logx ,log)
+    (mod ,modulo)
+    (atan2 ,(lambda (x y) (/ (atan y x) drg)))))
+
+(define trinary-operators
+  `((dms2deg ,(lambda (d m s) (+ d (/ m 60) (/ s 360))))))
+
+(define stack-operators
+  `((sum ,(lambda (stk) (list (fold + 0 stk))))
+    (product ,(lambda (stk) (list (fold * 1 stk))))
+    (mean ,(lambda (stk) (list (/ (fold + 0 stk) (length stk)))))
+    (reverse ,(lambda (stk) (reverse stk)))
+    (inexact ,(lambda (stk) (map exact->inexact stk)))
+    (r ,(lambda (stk) (nz-cdr stk))) ;; roll or left shift the stack
+    (c ,(lambda (stk) '(0))) ;; clear stack 
+    (car ,(lambda (stk) (list (car stk)))) ;; first 
+    (cdr ,(lambda (stk) (nz-cdr stk))))) ;; rest 
+
+(define non-stack-operators
+   `((bin (set! rpn-radix 2))
+     (oct (set! rpn-radix 8))
+     (dec (set! rpn-radix 10))
+     (hex (set! rpn-radix 16))
+     (rad (set! drg 1))
+     (deg (set! drg DEG2RAD))
+     (grd (set! drg GRD2RAD))
+     (xl (set! xl (not xl)))
+     (help (print-help-string)))) 
+
+  ;;; }}}
 
 ;;; Process Commands {{{1
 (define (process command stack)
@@ -85,91 +132,58 @@
         (y (nz-car (nz-cdr stack)))
         (z (nz-car (nz-cdr (nz-cdr stack)))))
     (cond
-	    [(equal? command "") stack] ;; nop
-      ;; operations {{{2
-        [(equal? command "+") (cons (+ y x) (nz-cdr stack 2))]
-        [(equal? command "-") (cons (- y x) (nz-cdr stack 2))]
-        [(equal? command "*") (cons (* y x) (nz-cdr stack 2))]
-        [(equal? command "/") (cons 
-             (check (lambda () (/ y x)) y) (nz-cdr stack 2))]
-        [(equal? command "inv") (cons 
-                (check (lambda () (/ 1 x)) y) (nz-cdr stack 2))]
-        [(alist-ref (string->symbol command) uniary)
-            (cons ((car (alist-ref (string->symbol command) uniary)) x) (nz-cdr stack))]
-        [(or (equal? command "pow") 
-             (equal? command "expt")) (cons (expt y x) (nz-cdr stack 2))]
-        [(equal? command "logx") (cons (log y x) (nz-cdr stack 2))]
-        [(equal? command "tan") (cons 
-                (check (lambda () (tan (* drg x))) x) (nz-cdr stack ))]
-        [(equal? command "atan2") (cons (/ (atan y x) drg) (nz-cdr stack 2))]
-        [(equal? command "mod") (cons 
-                (check (lambda () (modulo y x)) y) (nz-cdr stack 2))]
+	[(equal? command "") stack] ;; nop
+        
+        [(alist-ref (string->symbol command) constants) =>
+                (lambda (c-list) (cons (car c-list) stack))]
+        
+        [(alist-ref (string->symbol command) uniary-operators) =>
+                (lambda (f-list) (cons 
+                                   (check (lambda () ((car f-list) x)) y)
+                                   (nz-cdr stack)))]
+        
+        [(alist-ref (string->symbol command) binary-operators) =>
+                (lambda (f-list) (cons 
+                                   (check (lambda () ((car f-list) y x)) y)
+                                   (nz-cdr stack 2)))]
+        
+        [(alist-ref (string->symbol command) trinary-operators) =>
+                (lambda (f-list) (cons 
+                                   (check (lambda () ((car f-list) x y z)) z)
+                                   (nz-cdr stack 3)))]
 
-        ;; }}}
-
-      ;; conversions {{{2
-        [(or (equal? command "dms2deg") (equal? command "hms2hr"))
-            (cons (+ x (/ y 60) (/ z 3600)) (nz-cdr stack 3))]
+        [(alist-ref (string->symbol command) stack-operators) =>
+                (lambda (f-list) ((car f-list) stack))]
+        
+        [(alist-ref (string->symbol command) non-stack-operators) =>
+                (lambda (f-list) (eval (car f-list)) stack)]
+        
+        ;; Special Cases
+        ;; deg2dms is a special case uniary operator since it returns multiple values
         [(or (equal? command "deg2dms") (equal? command "hr2hms")) 
             (let* ((fx (floor (abs x)))
                    (fy (floor (* 60 (- (abs x) fx))))
                    (fz (- (abs x) fx (/ fy 60))))
                 (append (list fx fy (* 3600 fz)) (nz-cdr stack)))]
-      ;; }}}
-
-        ;; list operations {{{2
-        [(equal? command "sum") (list (fold + 0 stack))]
-        [(equal? command "product") (list (fold * 0 stack))]
-        [(equal? command "mean") (list (/ (fold + 0 stack) (length stack)))]
-        [(equal? command "reverse") (reverse stack)]
-        ;; }}}
-
-        ;; constatants {{{2
-        [(equal? command "pi") (cons PI stack)]
-        [(equal? command "e") (cons E stack)]
-        ;; }}}
-
-        ;; memory {{{2
+        
+        ;; memory 
         ;; valid slots are 0..10  other references are mod 10
         ;; using y(ank) or p(ut) defaults to slot 0
+        ;; the puts are not special cases
         [(equal? command "y") (vector-set! memory 0 x) stack]
         [(equal? command "yx") (vector-set! memory (modulo x 10) y) (nz-cdr stack)]
-        [(equal? command "p") (cons (vector-ref memory 0) stack)]
-        [(equal? command "px") (cons (vector-ref memory (modulo x 10)) (nz-cdr stack))]
-        ;; }}}
-
-        ;; change behavior {{{2
+ 
+        ;; change behavior 
         [(equal? command "scale") (set! scale x) (nz-cdr stack)]
         [(equal? command "radix") (set! rpn-radix x) (nz-cdr stack)]
-        [(equal? command "bin") (set! rpn-radix 2) stack]
-        [(equal? command "hex") (set! rpn-radix 16) stack]
-        [(equal? command "dec") (set! rpn-radix 10) stack]
-        [(equal? command "rad") (set! drg 1) stack]
-        [(equal? command "deg") (set! drg DEG2RAD) stack]
-        [(equal? command "grd") (set! drg GRD2RAD) stack]
-        [(equal? command "xl") (set! xl (not xl)) stack]
-        ;; }}}
 
-        ;; directly manipulate stack {{{2
-        [(equal? command "inexact") (map exact->inexact stack)]
-        [(equal? command "reverse") (reverse stack)]
-        [(equal? command "r") (nz-cdr stack)] ;; roll or left shift the list
-        [(equal? command "c") '(0)] ;; clear stack
-        [(equal? command "car") (list (car stack))] ;; first 
-        [(equal? command "cdr") (nz-cdr stack)] ;; rest
-        ;; }}}
-
-		;; Miax. 
-        [(equal? command "help") (print-help-string) stack] ;; rest
-		[else  ;; bad command
-		  (if is-terminal?
-			(begin 
-               (clr-error) (printw "bad command") (refresh))
-			(begin
-			  (display "bad command") (newline)))
+        [else  ;; bad command
+	   (if is-terminal?
+	       (begin (clr-error) (printw "bad command") (refresh))
+	       (begin (display "bad command") (newline)))
                stack]
     )))
-		;
+
 ;;}}}
 
 ;;; ncurses: Position Routines {{{1
