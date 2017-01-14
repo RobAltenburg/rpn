@@ -68,8 +68,9 @@
 ;;; Operator a-lists {{{1
 (define constants
   `((pi ,PI)
+    (pi2 ,(/ PI 2))
     (e ,E)
-    (p ,(vector-ref memory 0)) ; memory recall
+    (p (vector-ref memory 0)) ; memory recall
     ))
 
 (define uniary-operators
@@ -78,9 +79,10 @@
     (abs ,abs)
     (exp ,exp)
     (sqrt ,sqrt)
+    (chs ,(lambda (x) (* -1 x)))
     (sin ,(lambda (x) (sin (* drg x))))
     (cos ,(lambda (x) (cos (* drg x))))
-    (cos ,(lambda (x) (tan (* drg x))))
+    (tan ,(lambda (x) (tan (* drg x))))
     (asin ,(lambda (x) (/ (asin x) drg)))
     (acos ,(lambda (x) (/ (acos x) drg)))
     (atan ,(lambda (x) (/ (atan x) drg)))
@@ -135,7 +137,7 @@
 	[(equal? command "") stack] ;; nop
         
         [(alist-ref (string->symbol command) constants) =>
-                (lambda (c-list) (cons (car c-list) stack))]
+                (lambda (c-list) (cons (eval (car c-list)) stack))]
         
         [(alist-ref (string->symbol command) uniary-operators) =>
                 (lambda (f-list) (cons 
