@@ -15,15 +15,13 @@
 (define (print-help-string)
   (when is-terminal? ;; only show help in interactive mode
   (move 4 0)
-  (printw "Operators: ")
-  (printw "+ - * / inv sqrt pow expt abs log log10 logx exp~%")
-  (printw "    sin cos tan asin acos atan atan2 mod hms2hr hr2hms ~%")
-  (printw "Stack Operations: sum product mean reverse~%")
-  (printw "Constants: pi e~%")
-  (printw "Memory: y yx p px~%")
-  (printw "Display Behavior: scale radix bin hex dec~%")
-  (printw "Conversions: rad deg grd~%")
-  (printw "Manipulate Stack: inexact reverse r c car cdr~%")
+  (printw "Constants: ~A~%" (alist-keys constants))
+  (printw "Uniary Operators (x -> x): ~%   ~A~%" (alist-keys uniary-operators))
+  (printw "Binary Operators (x y -> x): ~A~%" (alist-keys binary-operators))
+  (printw "Trinary Operators (x y z -> x): ~A~%" (alist-keys trinary-operators))
+  (printw "Stack Operators (stack -> stack): ~%   ~A~%" (alist-keys stack-operators))
+  (printw "Non-Stack Operators (x -> void): ~A~%" (alist-keys non-stack-operators))
+  (printw "Other Operators: (deg2dms y x scale radix)~%") 
   (refresh)))
 ;;;}}}
 
@@ -143,7 +141,6 @@
      '(deg2dms y x scale radix)))
  
 ;;; }}}
-
 
 ;;; Process Commands {{{1
 (define (process command stack)
