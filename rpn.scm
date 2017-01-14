@@ -7,6 +7,10 @@
 
 (use fmt numbers posix ncurses)
 
+(define-syntax alist-keys
+  (syntax-rules ()
+    ((_ alist) (map car alist))))
+
 ;;; Help {{{1
 (define (print-help-string)
   (when is-terminal? ;; only show help in interactive mode
@@ -126,7 +130,20 @@
      (xl (set! xl (not xl)))
      (help (print-help-string)))) 
 
-  ;;; }}}
+;; extract the operator symbols from the alists and
+;; include the special-case symbols
+(define operator-symbols
+(append (car (map (lambda (alist) (map car alist)) 
+            (list (append constants 
+                   uniary-operators
+                   binary-operators
+                   trinary-operators
+                   stack-operators
+                   non-stack-operators))))
+     '(deg2dms y x scale radix)))
+ 
+;;; }}}
+
 
 ;;; Process Commands {{{1
 (define (process command stack)
