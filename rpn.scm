@@ -7,6 +7,9 @@
 
 (use fmt numbers posix ncurses mathh)
 
+;; As of 2017/01/15 a bug in mathh means this can't be compled
+;; at optimization-level 3
+
 ;;; Utility {{{1
 (define-syntax alist-keys
   (syntax-rules ()
@@ -84,7 +87,7 @@
     (exp ,exp)
     (sqrt ,sqrt)
     (gamma ,gamma) ; mathh
-    (! ,(lambda (x) (gamma (+ x 1))))
+    (! ,(lambda (x) (gamma (+ x 1)))) ; req mathh
     (chs ,(lambda (x) (* -1 x)))
     (sin ,(lambda (x) (sin (* drg x))))
     (cos ,(lambda (x) (cos (* drg x))))
@@ -93,7 +96,7 @@
     (acos ,(lambda (x) (/ (acos x) drg)))
     (atan ,(lambda (x) (/ (atan x) drg)))
     (inv ,(lambda (x) (/ 1 x)))
-    (px ,(lambda (x) (vector-ref memory (modulo x 10)))) ; memory recall
+    (px ,(lambda (x) (vector-ref memory (modulo x 10)))) ; memory recall "put"
     ))
 
 (define binary-operators
@@ -105,7 +108,7 @@
     (pow ,expt)
     (logx ,log)
     (mod ,modulo)
-    (eex ,(lambda (x y) (* x (expt 10 y))))
+    (eex ,(lambda (x y) (* x (expt 10 y)))) ; enter scientific notation y * 10^x
     (atan2 ,(lambda (x y) (/ (atan y x) drg)))))
 
 (define trinary-operators
