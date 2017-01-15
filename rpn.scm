@@ -27,17 +27,6 @@
 
 ;;;}}}
 
-;;; Non-Library Functions {{{
-;; for some reason, an error results when this
-;; is defined using as (gamma (+ x 1))
-;; for now, it forces integers
-(define (factorial x)
-  (let ((i (floor x)))
-  (if (zero? i)
-    1
-    (* i (factorial (- i 1))))))
-;;; }}}
-
 ;;; Help {{{1
 (define (print-help-string)
   (when is-terminal? ;; only show help in interactive mode
@@ -95,7 +84,7 @@
     (exp ,exp)
     (sqrt ,sqrt)
     (gamma ,gamma) ; mathh
-    (! ,factorial)
+    (! ,(lambda (x) (gamma (+ x 1))))
     (chs ,(lambda (x) (* -1 x)))
     (sin ,(lambda (x) (sin (* drg x))))
     (cos ,(lambda (x) (cos (* drg x))))
