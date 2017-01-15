@@ -40,7 +40,7 @@
   (printw "Trinary Operators (x y z -> x): ~A~%" (alist-keys trinary-operators))
   (printw "Stack Operators (stack -> stack): ~%   ~A~%" (alist-keys stack-operators))
   (printw "Non-Stack Operators (x -> void): ~A~%" (alist-keys non-stack-operators))
-  (printw "Other Operators: (deg2dms y x scale radix)~%")
+  (printw "Other Operators: (deg2dms y yx scale radix)~%")
   (refresh)))
 ;;;}}}
 
