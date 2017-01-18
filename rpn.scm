@@ -87,6 +87,10 @@
     (exp ,exp)
     (sqrt ,sqrt)
     (gamma ,gamma) ; mathh
+    (floor ,floor) 
+    (truncate ,truncate) 
+    (ceiling ,ceiling) 
+    (round ,round) 
     (! ,(lambda (x) (gamma (+ x 1)))) ; req mathh
     (chs ,(lambda (x) (* -1 x)))
     (sin ,(lambda (x) (sin (* drg x))))
