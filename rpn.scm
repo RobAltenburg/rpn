@@ -30,6 +30,7 @@
 
 (define is-terminal? (terminal-port? (current-input-port)))
 
+
 ;;;}}}
 
 ;;; Help {{{1
@@ -233,19 +234,22 @@
 
 ; }}}
 
-;;; Terminal Routines {{{1
+;;; Non-terminal Routines {{{1
 
 (define (batch-prepare stack)
+  "converts strings to numerics where possible"
   (batch-process (map (lambda (x) (if (string->number x)
                        (string->number x)
                        x)) stack)))
 
-(define (batch-process stack)
-    (let ((result (process (nz-car stack) (nz-cdr stack))))
-      (if (string? result)
-          (batch-process stack)
-          result)))
-
+(define (batch-process source-stack #!optional (proc-stack '()))
+  (if (and (number? (car source-stack)) (= 1 (length source-stack)))
+      source-stack
+      (begin
+        (let ((token (car source-stack)))
+          (if (string? token)
+              (batch-process (flatten (cons (process token proc-stack) (cdr source-stack))))
+              (batch-process (cdr source-stack) (cons token proc-stack)))))))
 
 ;;;}}}
 
@@ -300,7 +304,7 @@
             [(eof-object? line) stack]
             [else (loop (dispatch line (nz-cdr stk)))])))
       (begin ;; not in a terminal
-        (let ((line (car (map (lambda (x) (flatten (reverse (string-split x)))) (read-lines)))))
+        (let ((line (car (map (lambda (x) (flatten (string-split x))) (read-lines)))))
           (batch-prepare line)
           ))))
 
