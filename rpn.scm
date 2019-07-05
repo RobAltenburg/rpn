@@ -18,8 +18,8 @@
 (define (nz-car stack)
   "car that ensures a value is returned"
   (if (equal? '() stack)
-    0
-    (car stack)))
+      0
+      (car stack)))
 
 (define (nz-cdr stack #!optional (depth 1))
   "cdr that works on an empty stack"
@@ -28,32 +28,36 @@
     [(equal? 1 depth) (cdr stack)]
     [else (nz-cdr (cdr stack) (- depth 1))]))
 
+(define is-terminal? (terminal-port? (current-input-port)))
+
 ;;;}}}
 
 ;;; Help {{{1
 (define (print-help-string)
   (when is-terminal? ;; only show help in interactive mode
-  (move 4 0)
-  (printw "Constants: ~A~%" (alist-keys constants))
-  (printw "Uniary Operators (x -> x): ~%   ~A~%" (alist-keys uniary-operators))
-  (printw "Binary Operators (x y -> x): ~A~%" (alist-keys binary-operators))
-  (printw "Trinary Operators (x y z -> x): ~A~%" (alist-keys trinary-operators))
-  (printw "Stack Operators (stack -> stack): ~%   ~A~%" (alist-keys stack-operators))
-  (printw "Non-Stack Operators (x -> void): ~A~%" (alist-keys non-stack-operators))
-  (printw "Other Operators: (deg2dms y yx scale radix)~%")
-  (refresh)))
+    (move 4 0)
+    (printw "Constants: ~A~%" (alist-keys constants))
+    (printw "Uniary Operators (x -> x): ~%   ~A~%" (alist-keys uniary-operators))
+    (printw "Binary Operators (x y -> x): ~A~%" (alist-keys binary-operators))
+    (printw "Trinary Operators (x y z -> x): ~A~%" (alist-keys trinary-operators))
+    (printw "Stack Operators (stack -> stack): ~%   ~A~%" (alist-keys stack-operators))
+    (printw "Non-Stack Operators (x -> void): ~A~%" (alist-keys non-stack-operators))
+    (printw "Other Operators: (deg2dms y yx scale radix)~%")
+    (refresh)))
 ;;;}}}
 
 ;;; Error Handler {{{1
 (define (check thunk y)
   (if is-terminal?
-	(begin (clr-error)
-  (condition-case (thunk)
-                  [(exn arithmetic) (printw "Arithmetic Error") (refresh) y]
-                  [(exn) (printw "Other error") (refresh) y])))
-  (condition-case (thunk)
-                  [(exn arithmetic) (display "Arithmetic Error") (newline) y]
-                  [(exn) (display "Other error") (newline) y]))
+      (begin (clr-error)
+             (condition-case (thunk)
+                             [(exn arithmetic) (printw "Arithmetic Error") (refresh) y]
+                             [(exn) (printw "Other error") (refresh) y]))
+      (condition-case (thunk)
+                      [(exn arithmetic) (display "Batch Mode: Arithmetic Error") (newline) y]
+                      [(exn arity) (display "Batch Mode: Arity Error") (newline) y]
+                      [(exn type) (display "Batch Mode: Type Error") (newline) y]
+                      [(exn) (display "Batch Mode: Other error") (newline) y])))
 ;; }}}
 
 ;;; Constants {{{1
@@ -130,27 +134,27 @@
     (cdr ,(lambda (stk) (nz-cdr stk))))) ;; rest
 
 (define non-stack-operators
-   `((bin (set! rpn-radix 2))
-     (oct (set! rpn-radix 8))
-     (dec (set! rpn-radix 10))
-     (hex (set! rpn-radix 16))
-     (rad (set! drg 1))
-     (deg (set! drg DEG2RAD))
-     (grd (set! drg GRD2RAD))
-     (xl (set! xl (not xl)))
-     (help (print-help-string))))
+  `((bin (set! rpn-radix 2))
+    (oct (set! rpn-radix 8))
+    (dec (set! rpn-radix 10))
+    (hex (set! rpn-radix 16))
+    (rad (set! drg 1))
+    (deg (set! drg DEG2RAD))
+    (grd (set! drg GRD2RAD))
+    (xl (set! xl (not xl)))
+    (help (print-help-string))))
 
 ;; extract the operator symbols from the alists and
 ;; include the special-case symbols
 (define operator-symbols
-(append (car (map (lambda (alist) (map car alist))
-            (list (append constants
-                   uniary-operators
-                   binary-operators
-                   trinary-operators
-                   stack-operators
-                   non-stack-operators))))
-     '(deg2dms y x scale radix)))
+  (append (car (map (lambda (alist) (map car alist))
+                    (list (append constants
+                                  uniary-operators
+                                  binary-operators
+                                  trinary-operators
+                                  stack-operators
+                                  non-stack-operators))))
+          '(deg2dms y x scale radix)))
 
 ;;; }}}
 
@@ -160,57 +164,57 @@
         (y (nz-car (nz-cdr stack)))
         (z (nz-car (nz-cdr (nz-cdr stack)))))
     (cond
-	[(equal? command "") stack] ;; nop
+      [(equal? command "") stack] ;; nop
 
-        [(alist-ref (string->symbol command) constants) =>
-                (lambda (c-list) (cons (eval (car c-list)) stack))]
+      [(alist-ref (string->symbol command) constants) =>
+                                                      (lambda (c-list) (cons (eval (car c-list)) stack))]
 
-        [(alist-ref (string->symbol command) uniary-operators) =>
-                (lambda (f-list) (cons
-                                   (check (lambda () ((car f-list) x)) y)
-                                   (nz-cdr stack)))]
+      [(alist-ref (string->symbol command) uniary-operators) =>
+                                                             (lambda (f-list) (cons
+                                                                                (check (lambda () ((car f-list) x)) y)
+                                                                                (nz-cdr stack)))]
 
-        [(alist-ref (string->symbol command) binary-operators) =>
-                (lambda (f-list) (cons
-                                   (check (lambda () ((car f-list) y x)) y)
-                                   (nz-cdr stack 2)))]
+      [(alist-ref (string->symbol command) binary-operators) =>
+                                                             (lambda (f-list) (cons
+                                                                                (check (lambda () ((car f-list) y x)) y)
+                                                                                (nz-cdr stack 2)))]
 
-        [(alist-ref (string->symbol command) trinary-operators) =>
-                (lambda (f-list) (cons
-                                   (check (lambda () ((car f-list) x y z)) z)
-                                   (nz-cdr stack 3)))]
+      [(alist-ref (string->symbol command) trinary-operators) =>
+                                                              (lambda (f-list) (cons
+                                                                                 (check (lambda () ((car f-list) x y z)) z)
+                                                                                 (nz-cdr stack 3)))]
 
-        [(alist-ref (string->symbol command) stack-operators) =>
-                (lambda (f-list) ((car f-list) stack))]
+      [(alist-ref (string->symbol command) stack-operators) =>
+                                                            (lambda (f-list) ((car f-list) stack))]
 
-        [(alist-ref (string->symbol command) non-stack-operators) =>
-                (lambda (f-list) (eval (car f-list)) stack)]
+      [(alist-ref (string->symbol command) non-stack-operators) =>
+                                                                (lambda (f-list) (eval (car f-list)) stack)]
 
-        ;; Special Cases
-        ;; deg2dms is a special case uniary operator since it returns multiple values
-        [(or (equal? command "deg2dms") (equal? command "hr2hms"))
-            (let* ((fx (floor (abs x)))
-                   (fy (floor (* 60 (- (abs x) fx))))
-                   (fz (- (abs x) fx (/ fy 60))))
-                (append (list fx fy (* 3600 fz)) (nz-cdr stack)))]
+      ;; Special Cases
+      ;; deg2dms is a special case uniary operator since it returns multiple values
+      [(or (equal? command "deg2dms") (equal? command "hr2hms"))
+       (let* ((fx (floor (abs x)))
+              (fy (floor (* 60 (- (abs x) fx))))
+              (fz (- (abs x) fx (/ fy 60))))
+         (append (list fx fy (* 3600 fz)) (nz-cdr stack)))]
 
-        ;; memory
-        ;; valid slots are 0..10  other references are mod 10
-        ;; using y(ank) or p(ut) defaults to slot 0
-        ;; the puts are not special cases
-        [(equal? command "y") (vector-set! memory 0 x) stack]
-        [(equal? command "yx") (vector-set! memory (modulo x 10) y) (nz-cdr stack)]
+      ;; memory
+      ;; valid slots are 0..10  other references are mod 10
+      ;; using y(ank) or p(ut) defaults to slot 0
+      ;; the puts are not special cases
+      [(equal? command "y") (vector-set! memory 0 x) stack]
+      [(equal? command "yx") (vector-set! memory (modulo x 10) y) (nz-cdr stack)]
 
-        ;; change behavior
-        [(equal? command "scale") (set! scale x) (nz-cdr stack)]
-        [(equal? command "radix") (set! rpn-radix x) (nz-cdr stack)]
+      ;; change behavior
+      [(equal? command "scale") (set! scale x) (nz-cdr stack)]
+      [(equal? command "radix") (set! rpn-radix x) (nz-cdr stack)]
 
-        [else  ;; bad command
-	   (if is-terminal?
-	       (begin (clr-error) (printw "bad command") (refresh))
-	       (begin (display "bad command") (newline)))
-               stack]
-    )))
+      [else  ;; bad command
+        (if is-terminal?
+            (begin (clr-error) (printw "bad command") (refresh))
+            (begin (display "bad command") (newline)))
+        stack]
+      )))
 
 ;;}}}
 
@@ -227,70 +231,96 @@
   (move 3 2)
   (clrtoeol))
 
-(define (read-char-ncurses stack #!optional (str ""))
-"allow certain operations to avoid the need to hit [return]"
-  (clr-entry) (printw str) (refresh)
-  (let ((char (getch)))
-	(cond
-	  [(equal? #\return char) (cons str stack)]
-	  [(equal? #\delete char)
-				(read-char-ncurses stack
-				  (string-drop-right str 1))]
-	  [(equal? #\space char) (cons str stack)]
-	  [(equal? #\+ char) (cons "+" (if (equal? "" str) stack (dispatch str stack)))]
-	  [(equal? #\* char) (cons "*" (if (equal? "" str) stack (dispatch str stack)))]
-	  [(equal? #\/ char) (cons "/" (if (equal? "" str) stack (dispatch str stack)))]
-	  [(equal? #\- char) (if (equal? "" str)
-		                (read-char-ncurses stack "-")
-                                (cons "-" (dispatch str stack)))]
-	  [(equal? #\! char) (cons "!" (if (equal? "" str) stack (dispatch str stack)))]
-	  [(equal? #\q char) (cons "q" stack)]
-	  [else
-		(clr-error)
-		(read-char-ncurses stack (string-append str (string char)))])))
-;; }}}
+; }}}
+
+;;; Terminal Routines {{{1
+
+(define (batch-prepare stack)
+  (batch-process (map (lambda (x) (if (string->number x)
+                       (string->number x)
+                       x)) stack)))
+
+(define (batch-process stack)
+    (let ((result (process (nz-car stack) (nz-cdr stack))))
+      (if (string? result)
+          (batch-process stack)
+          result)))
+
+
+;;;}}}
 
 ;;; Dispatcher {{{1
+
+(define (read-char-ncurses stack #!optional (str ""))
+  "allow certain operations to avoid the need to hit [return]"
+  (clr-entry) (printw str) (refresh)
+  (let ((char (getch)))
+    (cond
+      [(equal? #\return char) (cons str stack)]
+      [(equal? #\delete char)
+       (read-char-ncurses stack
+                          (string-drop-right str 1))]
+      [(equal? #\space char) (cons str stack)]
+      [(equal? #\+ char) (cons "+" (if (equal? "" str) stack (dispatch str stack)))]
+      [(equal? #\* char) (cons "*" (if (equal? "" str) stack (dispatch str stack)))]
+      [(equal? #\/ char) (cons "/" (if (equal? "" str) stack (dispatch str stack)))]
+      [(equal? #\- char) (if (equal? "" str)
+                             (read-char-ncurses stack "-")
+                             (cons "-" (dispatch str stack)))]
+      [(equal? #\! char) (cons "!" (if (equal? "" str) stack (dispatch str stack)))]
+      [(equal? #\q char) (cons "q" stack)]
+      [else
+        (clr-error)
+        (read-char-ncurses stack (string-append str (string char)))])))
+
 (define (dispatch line stack)
   "if a number is input, cons it to the stack
-   else, assume it's a command and process it"
-    (let ((val (string->number line)))
-        (if val
-            (cons val stack)
-            (process line stack))))
+  else, assume it's a command and process it"
+  (let ((val (string->number line)))
+    (if val
+        (cons val stack)
+        (process line stack))))
 ;;; }}}
 
-;;; Main Loop {{{1
+;;; Outer Loop {{{1
 (define (loop #!optional (stack '()))
+  (if is-terminal?
+      (begin
+        (clr-stack)
+        (printw (fmt #f (radix rpn-radix
+                               (fix scale
+                                    (pretty
+                                      (map exact->inexact stack))))))
+        (move 2 0) (clrtoeol) (printw "> ")
+        (refresh)
+        (let* ((stk (read-char-ncurses stack))
+               (line (nz-car stk)))
+          (cond
+            [(equal? line "q") stack]
+            [(eof-object? line) stack]
+            [else (loop (dispatch line (nz-cdr stk)))])))
+      (begin ;; not in a terminal
+        (let ((line (car (map (lambda (x) (flatten (reverse (string-split x)))) (read-lines)))))
+          (batch-prepare line)
+          ))))
+
+
+  ;; }}}
+
+  ;;; Main {{{1 
+  (when is-terminal? 
+    (initscr) (noecho) (raw) (nonl)
+    (keypad (stdscr) #t)
+    (printw "rpn -----------") (refresh))
+
+  (define retvar (loop)) ;; execute the main loop
+
   (when is-terminal?
-      (clr-stack)
-      (printw (fmt #f (radix rpn-radix
-                     (fix scale
-                          (pretty
-                            (map exact->inexact stack))))))
-	  (move 2 0) (clrtoeol) (printw "> ")
-      (refresh))
-  (let* ((stk (if is-terminal?
-				(read-char-ncurses stack)
-				(cons (read-line) stack)))
-		 (line (nz-car stk)))
-	(cond
-		[(equal? line "q") stack]
-		[(eof-object? line) stack]
-        [else (loop (dispatch line (nz-cdr stk)))])))
+    (endwin))
 
-;; }}}
-
-(define is-terminal? (terminal-port? (current-input-port)))
-
-(initscr) (noecho) (raw) (nonl)
-(keypad (stdscr) #t)
-(printw "rpn -----------") (refresh)
-(define retvar (loop))
-(endwin)
-
-(if xl
-(fmt #t
-     (map exact->inexact retvar))
-(fmt #t (radix rpn-radix (fix scale (exact->inexact (nz-car retvar))))))
-(newline)
+  (if xl
+      (fmt #t
+           (map exact->inexact retvar))
+      (fmt #t (radix rpn-radix (fix scale (exact->inexact (nz-car retvar))))))
+  (newline)
+  ;;; 1}}}
