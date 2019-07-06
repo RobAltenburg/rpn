@@ -29,7 +29,7 @@
     [else (nz-cdr (cdr stack) (- depth 1))]))
 
 (define is-terminal? (terminal-port? (current-input-port)))
-
+;(define is-terminal? #f) ;; only for testing
 
 ;;;}}}
 
@@ -243,6 +243,7 @@
                        x)) stack)))
 
 (define (batch-process source-stack #!optional (proc-stack '()))
+  ;; (print source-stack " -- " proc-stack)
   (if (and (number? (car source-stack)) (= 1 (length source-stack)))
       source-stack
       (begin
@@ -304,7 +305,7 @@
             [(eof-object? line) stack]
             [else (loop (dispatch line (nz-cdr stk)))])))
       (begin ;; not in a terminal
-        (let ((line (car (map (lambda (x) (flatten (string-split x))) (read-lines)))))
+        (let ((line (flatten (map (lambda (x) (flatten (string-split x))) (read-lines)))))
           (batch-prepare line)
           ))))
 
