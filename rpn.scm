@@ -2,7 +2,7 @@
 ;;; rpn
 ;;; A lightweight, command-line, rpn calculator
 ;;;
-;;; Rob Altenburg -- 12/2016
+;;; (c) Rob Altenburg -- 7/2019
 ;;;
 
 (use fmt numbers posix ncurses mathh)
@@ -73,7 +73,7 @@
 (define rpn-radix 10)
 (define drg DEG2RAD)
 (define xl #f) ; exit with full stack
-(define memory (make-vector 11 0))
+(define memory (make-vector 255 0))
 ;;; }}}
 
 ;;; Operator a-lists (most functions are defined here) {{{1

@@ -1,6 +1,8 @@
 # rpn
 A lightweight, command-line, rpn calculator.
 
+I wanted an command line rpn calculator that was more user-friendly than GNU dc.
+
 ## General operation
 
 This calculator maintains a stack of operands *(x, y, z, ...)*. Entering a number pushes it onto a stack, and enetering an 
@@ -67,7 +69,7 @@ These have non-standard behavior
 
 * **deg2dms** (x(deg) -> x (deg), y (min), z (sec))
 * **y** (yanks x -> memory[0] leaving x on the stack)
-* **yx** (yanks x -> memory[x] leaving x on the stack)
+* **yx** (yanks y -> memory[x] and pops y from the stack)
 * **scale** (sets display scale to x decimal places)
 * **radix** (sets the display radix to x)
 
