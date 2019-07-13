@@ -64,6 +64,8 @@
 ;;; Constants {{{1
 (define PI 3.141592653589793)
 (define E 2.7182818284590452)
+(define G 9.80665) ; standard gravity (m/s^2)
+(define C 299792458) ; speed of light (m/s)
 (define DEG2RAD (/ PI 180))
 (define GRD2RAD (/ PI 200))
 ;;; }}}
@@ -81,6 +83,8 @@
   `((pi ,PI)
     (pi2 ,(/ PI 2))
     (e ,E)
+    (g ,G)
+    (c ,C)
     (p (vector-ref memory 0)) ; memory recall
     ))
 

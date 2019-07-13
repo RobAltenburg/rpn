@@ -10,7 +10,7 @@ operator may consume elements from the stack and, in most cases, will push its r
 
 So, typing ```25 [return]``` pushes "25" on the stack, and then typing ```sqrt [return]``` pops "25" from the stack and pushes the result leaving "5" in position *x*.
 
-*Shortcut:*  For single-character operators, you can type ```25+``` instead of ```25 [return] + [return]```.
+*Shortcut:*  For single-character operators, you can type ```25+``` instead of ```25 [return] + [return]```  (note: you can add a constant like ```pi+``` but ```e+``` is a bad command since it is confused with numerics of the form ```1e+6```.)
 
 ### Constants
 These push a value on the stack without consuming a stack element: *value -> x*
