@@ -256,7 +256,7 @@
 
 ;;; Dispatcher {{{1
 
-(define (read-char-ncurses stack #!optional (str ""))
+(define (read-char-ncurses stack #!optional (str "") (e-flag #f))
   "allow certain operations to avoid the need to hit [return]"
   (clr-entry) (printw str) (refresh)
   (let ((char (getch)))
@@ -266,17 +266,23 @@
        (read-char-ncurses stack
                           (string-drop-right str 1))]
       [(equal? #\space char) (cons str stack)]
-      [(equal? #\+ char) (cons "+" (if (equal? "" str) stack (dispatch str stack)))]
+      [(equal? #\+ char) (if e-flag 
+                             (read-char-ncurses stack (string-append str (string char)) #f)
+                             (cons "+" (if (equal? "" str) stack (dispatch str stack))))]
       [(equal? #\* char) (cons "*" (if (equal? "" str) stack (dispatch str stack)))]
       [(equal? #\/ char) (cons "/" (if (equal? "" str) stack (dispatch str stack)))]
-      [(equal? #\- char) (if (equal? "" str)
-                             (read-char-ncurses stack "-")
-                             (cons "-" (dispatch str stack)))]
+      [(equal? #\- char) (if e-flag 
+                             (read-char-ncurses stack (string-append str (string char)) #f)
+                             (if (equal? "" str)
+                                 (read-char-ncurses stack "-")
+                                 (cons "-" (dispatch str stack))))]
       [(equal? #\! char) (cons "!" (if (equal? "" str) stack (dispatch str stack)))]
       [(equal? #\q char) (cons "q" stack)]
+      [(equal? #\e char) (read-char-ncurses stack (string-append str (string char)) #t)]
+      ;; e is a special case since it can be part of numbers of the form '1e+6'
       [else
         (clr-error)
-        (read-char-ncurses stack (string-append str (string char)))])))
+        (read-char-ncurses stack (string-append str (string char)) #f)])))
 
 (define (dispatch line stack)
   "if a number is input, cons it to the stack
