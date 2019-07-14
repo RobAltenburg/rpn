@@ -5,10 +5,7 @@
 ;;; (c) Rob Altenburg -- 7/2019
 ;;;
 
-(use fmt numbers posix ncurses mathh)
-
-;; As of 2017/01/15 a bug in mathh means this can't be compled
-;; at optimization-level 3
+(import fmt ncurses mathh (chicken port) (chicken io) (chicken string))
 
 ;;; Utility {{{1
 (define-syntax alist-keys
@@ -29,7 +26,7 @@
     [else (nz-cdr (cdr stack) (- depth 1))]))
 
 (define is-terminal? (terminal-port? (current-input-port)))
-;(define is-terminal? #f) ;; only for testing
+;(define is-terminal? #t) ;; only for testing
 
 ;;;}}}
 
