@@ -259,14 +259,14 @@
 
 (define (read-char-ncurses stack #!optional (str "") (e-flag #f))
   "allow certain operations to avoid the need to hit [return]"
+  ;; the e-flag variable is needed to detect numerics of the form 1e+6
   (clr-entry) (printw str) (refresh)
   (let ((char (getch)))
     (cond
       [(equal? #\return char) (cons str stack)]
-      [(equal? #\delete char)
-       (read-char-ncurses stack
-                          (string-drop-right str 1))]
       [(equal? #\space char) (cons str stack)]
+      [(equal? KEY_BACKSPACE char)
+       (read-char-ncurses stack (string-drop-right str 1))]
       [(equal? #\+ char) (if e-flag 
                              (read-char-ncurses stack (string-append str (string char)) #f)
                              (cons "+" (if (equal? "" str) stack (dispatch str stack))))]
@@ -281,9 +281,13 @@
       [(equal? #\q char) (cons "q" stack)]
       [(equal? #\e char) (read-char-ncurses stack (string-append str (string char)) #t)]
       ;; e is a special case since it can be part of numbers of the form '1e+6'
+      [(equal? 1 (string-length (unctrl char)))
+        ;; when it's not a control character, add it to the stack
+        (clr-error)
+        (read-char-ncurses stack (string-append str (string char)) #f)]
       [else
         (clr-error)
-        (read-char-ncurses stack (string-append str (string char)) #f)])))
+        (read-char-ncurses stack str #f)])))
 
 (define (dispatch line stack)
   "if a number is input, cons it to the stack
