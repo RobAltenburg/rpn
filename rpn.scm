@@ -265,8 +265,6 @@
     (cond
       [(equal? #\return char) (cons str stack)]
       [(equal? #\space char) (cons str stack)]
-      [(equal? KEY_BACKSPACE char)
-       (read-char-ncurses stack (string-drop-right str 1))]
       [(equal? #\+ char) (if e-flag 
                              (read-char-ncurses stack (string-append str (string char)) #f)
                              (cons "+" (if (equal? "" str) stack (dispatch str stack))))]
