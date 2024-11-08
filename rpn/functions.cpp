@@ -29,6 +29,17 @@ uint8_t funcAdd(VectorWrapper &stack, State &state) {
     stack.push_back(stack.pop() + stack.pop());
     return 0;
 }
+
+uint8_t funcSum(VectorWrapper &stack, State &state) {
+    double sum = 0;
+    int64_t size = (int64_t) stack.size();
+    for (int64_t i = size; i > 0; --i) {
+        sum += stack.pop();
+    }
+    stack.push_back(sum);
+    return 0;
+}
+
 uint8_t funcSubtract(VectorWrapper &stack, State &state) {
     double y = stack.pop();
     stack.push_back(stack.pop() - y);

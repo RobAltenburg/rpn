@@ -15,6 +15,10 @@ void VectorWrapper::clear() {
     vec.clear();
 }
 
+int64_t VectorWrapper::size() {
+    return vec.size();
+}
+
 double VectorWrapper::pop() {
     if (vec.empty()) {
         return 0.0; // Return 0 if the vector is empty

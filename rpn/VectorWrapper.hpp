@@ -19,6 +19,7 @@ private:
 public:
     void push_back(double);
     void clear();
+    int64_t size();
     double pop();
     double look();
     void print();

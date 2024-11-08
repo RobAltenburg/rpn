@@ -24,6 +24,7 @@ void callFunction(const std::string &functionName, VectorWrapper &stack, State &
     // Lookup table
     std::map<std::string, std::function<uint8_t(VectorWrapper&, State&)>> functionTable = {
         {"+", funcAdd},
+        {"sum", funcSum},
         {"-", funcSubtract},
         {"*", funcMultiply},
         {"/", funcDivide},

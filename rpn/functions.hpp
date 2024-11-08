@@ -27,6 +27,7 @@ bool isInteger(double);
 
 // basic math
 uint8_t funcAdd(VectorWrapper &stack, State &state);
+uint8_t funcSum(VectorWrapper &stack, State &state);
 uint8_t funcSubtract(VectorWrapper &stack, State &state);
 uint8_t funcMultiply(VectorWrapper &stack, State &state);
 uint8_t funcDivide(VectorWrapper &stack, State &state);
