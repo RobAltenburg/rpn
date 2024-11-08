@@ -10,16 +10,18 @@
 
 #include <vector>
 #include <stdexcept>
+#include <iostream>
 
 class VectorWrapper {
 private:
-    std::vector<long double> vec;
+    std::vector<double> vec;
     
 public:
-    void push_back(long double);
+    void push_back(double);
     void clear();
     double pop();
     double look();
+    void print();
 };
 
 

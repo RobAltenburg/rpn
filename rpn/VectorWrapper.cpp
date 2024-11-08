@@ -7,7 +7,7 @@
 
 #include "VectorWrapper.hpp"
 
-void VectorWrapper::push_back(long double value) {
+void VectorWrapper::push_back(double value) {
     vec.push_back(value);
 }
 
@@ -29,5 +29,15 @@ double VectorWrapper::look() {
         return 0.0; // Return 0 if the vector is empty
     }
     return vec.back();
+}
+
+void VectorWrapper::print()  {      // print the contents of the vector
+   int64_t size = (int64_t) vec.size();
+    
+    for (int64_t i = size - 1; i >= 0; --i) {
+        if (i < 0) {break;}
+        std::cout << i<< ": " << vec[size - i - 1] << std::endl;
+        
+    }
 }
 
