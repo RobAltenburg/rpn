@@ -61,7 +61,7 @@ void funcDivide(VectorWrapper &stack, State &state) {
     double y = stack.pop();
     if (y == 0) {
         stack.push_back(0);
-        throw(ERROR_NAN);
+        throw(ErrorCode::NOT_A_NUMBER);
     } else {
         stack.push_back(stack.pop() / y);
     }
@@ -78,7 +78,7 @@ void funcRoot(VectorWrapper &stack, State &state) {
     double denominator = stack.pop();
     if (denominator == 0){
         stack.push_back(0);
-        throw(ERROR_NAN);
+        throw(ErrorCode::NOT_A_NUMBER);
     } else {
         double y = 1 / denominator;
         stack.push_back(pow(stack.pop(), y));
@@ -90,7 +90,7 @@ void funcReciprocal(VectorWrapper &stack, State &state) {
     double denominator = stack.pop();
     if (denominator == 0){
         stack.push_back(0);
-        throw(ERROR_NAN);
+        throw(ErrorCode::NOT_A_NUMBER);
     } else {
         stack.push_back(1.0 / stack.pop());
     }
@@ -106,7 +106,7 @@ void funcModulo(VectorWrapper &stack, State &state) {
     double y = stack.pop();
     if (y == 0){
         stack.push_back(0);
-        throw(ERROR_NAN);
+        throw(ErrorCode::NOT_A_NUMBER);
     } else {
         stack.push_back(std::fmod(stack.pop(), y));
     }
@@ -164,7 +164,7 @@ void funcTan(VectorWrapper &stack, State &state){
     double value = stack.pop() * drgConversion(state);
     if (value == M_PI / 2) {    // catch tan(90)
         stack.push_back(value);
-        throw (ERROR_NAN);
+        throw (ErrorCode::NOT_A_NUMBER);
     } else {
         stack.push_back(std::tan(value)); //todo: catch error for tan(90)
     }
@@ -204,6 +204,16 @@ void funcDegtoDMS(VectorWrapper &stack, State &state){
 
 void funcSin(VectorWrapper &stack, State &state);
 
+//interpolation
+void funcLerp(VectorWrapper &stack, State &state) {
+    printDetails(state, "linear interpolation x = z + x(y - z)");
+    double x = stack.pop(); // x
+    double y = stack.pop(); //
+    double z = stack.pop();
+    stack.push_back(std::lerp(z,y,x));
+}
+
+
 // stack
 void funcPop(VectorWrapper &stack, State &state){
     stack.pop();
@@ -234,7 +244,7 @@ void funcStore(VectorWrapper &stack, State &state){
     if (isInteger(slot) && slot <= (MEMORY_SIZE - 1)) {
         state.memory[(int) slot] = value;
     } else {
-        throw(MEMORY_SIZE);
+        throw(ErrorCode::BAD_MEMORY_LOCATION);
     }
     stack.push_back(value);
 }
@@ -246,7 +256,7 @@ void funcRecall(VectorWrapper &stack, State &state){
     if (isInteger(slot) && slot <= (MEMORY_SIZE - 1)) {
         stack.push_back(state.memory[(int) slot]);
     } else {
-        throw(MEMORY_SIZE);
+        throw(ErrorCode::BAD_MEMORY_LOCATION);
     }
 }
 
@@ -265,7 +275,7 @@ void funcCopy(VectorWrapper &stack, State &state) {
     // Open a pipe to the pbcopy command
     FILE* pipe = popen("pbcopy", "w");
     if (pipe == nullptr) {
-        throw(ERROR_COPY);
+        throw(ErrorCode::BAD_PIPE);
     } else {
         // Write the text to the pipe
         fwrite(text.c_str(), sizeof(char), text.size(), pipe);

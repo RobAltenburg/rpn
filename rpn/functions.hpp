@@ -10,13 +10,12 @@
 
 #include "VectorWrapper.hpp"
 #include "errors.hpp"
+#include "main.hpp"
 #include <limits>
 #include <cmath>
 #include <string>
 #include <iostream>
 #include <sstream>
-
-#define MEMORY_SIZE 100
 
 
 // struct State
@@ -69,6 +68,9 @@ void funcSwap(VectorWrapper &stack, State &state);
 //constants
 void funcPi(VectorWrapper &stack, State &state);
 void funcE(VectorWrapper &stack, State &state);
+
+//interpolation
+void funcLerp(VectorWrapper &stack, State &state);
 
 //memory
 void funcStore(VectorWrapper &stack, State &state);

@@ -10,19 +10,23 @@
 
 #include <stdio.h>
 #include <iostream>
+#include <map>
+#include <string>
+#include "main.hpp"
 
-#define ERROR_NAN                 0
-#define ERROR_COPY                  1
-#define ERROR_BAD_MEMORY_LOCATION   2
-#define ERROR_UNKNOWN_FUNCTION      3
 
-const std::string errorMessages[] = {
-    "Not a number",
-    "Failed to open pipe to pbcopy",
-    "Bad memory location",  //        std::cout << "Memory must be an integer from 0 through " << MEMORY_SIZE -1 << std::endl;
-    "Unknown function"
+enum class ErrorCode {
+    NOT_A_NUMBER,
+    BAD_PIPE,
+    BAD_MEMORY_LOCATION,
+    UNKNOWN_FUNCTION
+    // Add more error codes as needed and update messages in errors.cpp
 };
 
-void processError(int);
+
+void processError(ErrorCode);
+
+void loadErrorMessages(const std::string& locale);
+std::string getErrorMessage(ErrorCode code);
 
 #endif /* errors_hpp */

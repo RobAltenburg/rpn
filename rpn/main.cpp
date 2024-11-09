@@ -38,9 +38,11 @@ void callFunction(const std::string &functionName, VectorWrapper &stack, State &
         {"log10", funcLog10},
         {"tenX", func10toX},
         {"eX", funcEtoX},
+        {"eeX", funcEtoX},
         {"r", funcReciprocal},
         {"chs", funcChs},   // change sign x
         {"mod", funcModulo},
+        {"%", funcModulo},
         {"sin", funcSin},
         {"asin", funcArcSin},
         {"cos", funcCos},
@@ -50,6 +52,7 @@ void callFunction(const std::string &functionName, VectorWrapper &stack, State &
         {"atan2", funcArcTan2},  // atan(y/x)
         {"pop", funcPop},
         {"cdr", funcPop},
+        {"d", funcPop},     // delete x
         {"swp", funcSwap},
         {"pi", funcPi},
         {"e", funcE},
@@ -58,7 +61,8 @@ void callFunction(const std::string &functionName, VectorWrapper &stack, State &
         {"copy", funcCopy}, // copy x to the clipboard
         {"cp", funcCopy},
         {"deg", funcDMStoDeg},
-        {"dms",funcDegtoDMS}
+        {"dms",funcDegtoDMS},
+        {"lerp",funcLerp}
     };
 
     // Find the function in the table
@@ -67,10 +71,9 @@ void callFunction(const std::string &functionName, VectorWrapper &stack, State &
         // Call the function
         it->second(stack, runState);
     } else {
-        throw(ERROR_UNKNOWN_FUNCTION);
+        throw(ErrorCode::UNKNOWN_FUNCTION);
     }
 }
-
 
 int main(int argc, const char * argv[]) {
     VectorWrapper stack;        // vector for the stack
@@ -78,6 +81,9 @@ int main(int argc, const char * argv[]) {
     std::string entry;          // input line
     bool runFlag = true;        // process loop
     State runState = {0};       // run state
+    
+    std::string locale = "en"; // This could be dynamically set based on user preference
+    loadErrorMessages(locale);
     
     // Is the program running interactivly, or is it being piped data
     if (isatty(fileno(stdin))) {
@@ -119,12 +125,11 @@ int main(int argc, const char * argv[]) {
         } else {                       // process the function
             try {
                 callFunction(entry, stack, runState);
-            } catch (int errorCode) {
+            } catch (ErrorCode errorCode) {
                 processError(errorCode);
             }
         }
         entry = ""; // clear the entry
-        
 
     }
     // could make this the default funcCopy(stack, runState); // leave the value in x in the clipboard
