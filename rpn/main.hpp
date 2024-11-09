@@ -4,11 +4,10 @@
 //
 //  Created by Robert Altenburg on 11/9/24.
 //
-#ifndef main_hpp
-#define main_hpp
 
-// struct State
-//
+#ifndef main_h
+#define main_h
+
 #include <iostream>
 #include <vector>
 #include <string>
@@ -26,4 +25,4 @@
 using VariantType = std::variant<double, std::monostate>;
 int readLineWithVariant(VariantType &number, std::string &text);
 
-#endif /* main.hpp*/
+#endif /* main_h */

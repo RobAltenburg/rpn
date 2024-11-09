@@ -5,7 +5,6 @@
 //  Created by Robert Altenburg on 11/7/24.
 //
 
-
 #include "main.hpp"
 
 // Map input codes to their functions

@@ -8,14 +8,15 @@
 #ifndef functions_hpp
 #define functions_hpp
 
-#include "VectorWrapper.hpp"
-#include "errors.hpp"
-#include "main.hpp"
 #include <limits>
 #include <cmath>
 #include <string>
 #include <iostream>
 #include <sstream>
+#include "main.hpp"
+#include "VectorWrapper.hpp"
+#include "errors.hpp"
+
 
 #define MEMORY_SIZE 100
 

@@ -12,7 +12,7 @@
 #include <iostream>
 #include <map>
 #include <string>
-#include "main.hpp"
+#include "functions.hpp"
 
 
 enum class ErrorCode {
