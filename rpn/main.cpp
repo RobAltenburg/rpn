@@ -12,17 +12,18 @@
 #include <cctype>
 #include <map>
 #include <functional>
+#include <unistd.h>
 
 #include "VectorWrapper.hpp"
 #include "functions.hpp"
 #include "readLineWithNumber.hpp"
+#include "errors.hpp"
 
-// Function to call the appropriate function based on the input string
+// Map input codes to their functions
 void callFunction(const std::string &functionName, VectorWrapper &stack, State &runState) {
     
-    uint8_t errorCode;
     // Lookup table that gives the name of the function and the actual function to run
-    std::map<std::string, std::function<uint8_t(VectorWrapper&, State&)>> functionTable = {
+    std::map<std::string, std::function<void(VectorWrapper&, State&)>> functionTable = {
         // in the following, x is the top of the stack y is the next element
         {"+", funcAdd},
         {"add", funcAdd}, // duplicate
@@ -48,26 +49,25 @@ void callFunction(const std::string &functionName, VectorWrapper &stack, State &
         {"atan", funcArcTan},
         {"atan2", funcArcTan2},  // atan(y/x)
         {"pop", funcPop},
+        {"cdr", funcPop},
         {"swp", funcSwap},
         {"pi", funcPi},
         {"e", funcE},
         {"sto", funcStore},
         {"rcl", funcRecall},
         {"copy", funcCopy}, // copy x to the clipboard
-        {"cp", funcCopy}
-        
+        {"cp", funcCopy},
+        {"deg", funcDMStoDeg},
+        {"dms",funcDegtoDMS}
     };
 
     // Find the function in the table
     auto it = functionTable.find(functionName);
     if (it != functionTable.end()) {
         // Call the function
-        errorCode = it->second(stack, runState);
-        if (errorCode > 0) {
-            std::cerr << "Error: " << errorCode << std::endl;
-        }
+        it->second(stack, runState);
     } else {
-        std::cerr << "Error: Function " << functionName << " not found" << std::endl;
+        throw(ERROR_UNKNOWN_FUNCTION);
     }
 }
 
@@ -79,15 +79,29 @@ int main(int argc, const char * argv[]) {
     bool runFlag = true;        // process loop
     State runState = {0};       // run state
     
+    // Is the program running interactivly, or is it being piped data
+    if (isatty(fileno(stdin))) {
+        std::cout << "rpn:" << std::endl; // Interactuive
+        runState.interactive = true;
+    } else {
+       // reading data from a pipe
+        runState.interactive = false; // this should be the default
+    }
+     
+    
     while (runFlag) {
         stack.print();
-        std::cout << "> ";
-        bool hasNumber = readLineWithNumber(number, entry);
-        
-        if (hasNumber) {
-            stack.push_back(number); // if a number was entered, push it
+        if (runState.interactive) { // only prompt in interactive mode
+            std::cout << "> ";
         }
         
+        bool hasNumber = readLineWithNumber(number, entry); // read a line from cin
+        
+        if (hasNumber) {
+            stack.push_back(number); // if a number was entered, push it to the stack
+        }
+        
+        // process commands and functions
         if (entry.empty()) {
             // No function found, skipping
         } else if (entry == "q") { // quit
@@ -98,16 +112,19 @@ int main(int argc, const char * argv[]) {
             stack.print();
         } else if (entry == "v") { // turn verbose on
             runState.verbose = true;
-        } else if (entry == "!v") { // turn verbose off
+            std::cout << "verbose mode on" << "\n";
+        } else if (entry == "!v" || entry == "v!") { // turn verbose off
             runState.verbose = false;
+            std::cout << "verbose mode off" << "\n";
         } else {                       // process the function
-            callFunction(entry, stack, runState);
-            //std::cout << stack.look() << std::endl;
-            entry = ""; // clear the entry
+            try {
+                callFunction(entry, stack, runState);
+            } catch (int errorCode) {
+                processError(errorCode);
+            }
         }
-            
-        //std:getline(std::cin, line);
-        //std::cout << line << "\n";
+        entry = ""; // clear the entry
+        
 
     }
     // could make this the default funcCopy(stack, runState); // leave the value in x in the clipboard

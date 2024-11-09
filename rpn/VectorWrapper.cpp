@@ -45,6 +45,8 @@ void VectorWrapper::print()  {      // print the contents of the vector
             std::cout << "x: ";
         } else if (i == 1) {
             std::cout << "y: ";
+        } else if (i == 2) {
+            std::cout << "z: ";
         } else {
             std::cout << i<< ": ";
         }
