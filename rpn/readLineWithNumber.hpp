@@ -12,7 +12,8 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include "main.hpp"
 
-bool readLineWithNumber(double &number, std::string &text);
+int readLineWithVarient(std::variant<double, std::monostate> &number, std::string &text);
 
 #endif /* readLineWithNumber_hpp */

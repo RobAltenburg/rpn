@@ -17,14 +17,14 @@
 #include <iostream>
 #include <sstream>
 
+#define MEMORY_SIZE 100
 
-// struct State
-//
 struct State {
     int drg;  // 0 = degrees, 1 = radians, 2 = gradians
-    double memory[MEMORY_SIZE]; //memory slots 0 to MEMORY_SIZE - 1
     bool verbose = false;
     bool interactive = false;
+    bool eof = false;
+    double memory[MEMORY_SIZE]; //memory slots 0 to MEMORY_SIZE - 1
 };
 
 // helper functions

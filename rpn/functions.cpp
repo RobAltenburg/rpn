@@ -216,6 +216,7 @@ void funcLerp(VectorWrapper &stack, State &state) {
 
 // stack
 void funcPop(VectorWrapper &stack, State &state){
+    printDetails(state, "pop");
     stack.pop();
 }
 
@@ -240,6 +241,7 @@ void funcE(VectorWrapper &stack, State &state){
 void funcStore(VectorWrapper &stack, State &state){
     double slot = stack.pop();
     double value = stack.pop();
+    printDetails(state, "store y to memory location "  + std::to_string((int)slot));
     
     if (isInteger(slot) && slot <= (MEMORY_SIZE - 1)) {
         state.memory[(int) slot] = value;
@@ -252,6 +254,7 @@ void funcStore(VectorWrapper &stack, State &state){
 // Recall a value to memory
 void funcRecall(VectorWrapper &stack, State &state){
     double slot = stack.pop();
+    printDetails(state, "push the contents of memory location " + std::to_string((int)slot));
     
     if (isInteger(slot) && slot <= (MEMORY_SIZE - 1)) {
         stack.push_back(state.memory[(int) slot]);

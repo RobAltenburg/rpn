@@ -7,21 +7,23 @@
 
 #include "readLineWithNumber.hpp"
 
-// TODO:  fix this so it parses correctly
-
-bool readLineWithNumber(double &number, std::string &text) {
+int readLineWithVarient(VariantType &number, std::string &text) {
     std::string line;
     std::getline(std::cin, line);
-
-    std::istringstream iss(line);
-    bool hasNumber = (iss >> number)  ? true : false;
-
-    // Extract the remaining text
-    std::getline(iss >> std::ws, text);
     
-    if (!hasNumber) {
-        text = line; // If no number, the entire line is text
+    std::istringstream iss(line);
+    double tempNumber;
+    if (iss >> tempNumber) {
+        number = tempNumber;
+        std::getline(iss >> std::ws, text); // extract the remainder of the line
+    } else {
+        number = std::monostate{};      // the number is null
+        text = line;                    // the whole line is text
+    }
+    if (std::cin.eof()) {
+        return EOF;
+    } else {
+        return 0;
     }
 
-    return hasNumber;
 }

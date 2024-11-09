@@ -5,19 +5,8 @@
 //  Created by Robert Altenburg on 11/7/24.
 //
 
-#include <iostream>
-#include <vector>
-#include <string>
-#include <sstream>
-#include <cctype>
-#include <map>
-#include <functional>
-#include <unistd.h>
 
-#include "VectorWrapper.hpp"
-#include "functions.hpp"
-#include "readLineWithNumber.hpp"
-#include "errors.hpp"
+#include "main.hpp"
 
 // Map input codes to their functions
 void callFunction(const std::string &functionName, VectorWrapper &stack, State &runState) {
@@ -77,7 +66,8 @@ void callFunction(const std::string &functionName, VectorWrapper &stack, State &
 
 int main(int argc, const char * argv[]) {
     VectorWrapper stack;        // vector for the stack
-    double number;              // input number
+    // double number;              // input number
+    VariantType number;
     std::string entry;          // input line
     bool runFlag = true;        // process loop
     State runState = {0};       // run state
@@ -92,6 +82,7 @@ int main(int argc, const char * argv[]) {
     } else {
        // reading data from a pipe
         runState.interactive = false; // this should be the default
+        runState.verbose = true;
     }
      
     
@@ -101,11 +92,21 @@ int main(int argc, const char * argv[]) {
             std::cout << "> ";
         }
         
-        bool hasNumber = readLineWithNumber(number, entry); // read a line from cin
+        //bool hasNumber = readLineWithNumber(number, entry); // read a line from cin
+        if (readLineWithVarient(number, entry) == EOF) {
+            runFlag = false;
+        }
         
+        if (!std::holds_alternative<std::monostate>(number)) {
+            double num = std::get<double>(number);
+            stack.push_back(num);
+        }
+        
+        /*
         if (hasNumber) {
             stack.push_back(number); // if a number was entered, push it to the stack
         }
+        */
         
         // process commands and functions
         if (entry.empty()) {
@@ -130,7 +131,7 @@ int main(int argc, const char * argv[]) {
             }
         }
         entry = ""; // clear the entry
-
+        //stack.print();
     }
     // could make this the default funcCopy(stack, runState); // leave the value in x in the clipboard
     return 0;
