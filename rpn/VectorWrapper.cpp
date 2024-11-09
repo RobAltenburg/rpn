@@ -39,9 +39,18 @@ void VectorWrapper::print()  {      // print the contents of the vector
    int64_t size = (int64_t) vec.size();
     
     for (int64_t i = size - 1; i >= 0; --i) {
-        if (i < 0) {break;}
-        std::cout << i<< ": " << vec[size - i - 1] << std::endl;
+        if (i < 0) {
+            break;
+        } else if (i == 0) {
+            std::cout << "x: ";
+        } else if (i == 1) {
+            std::cout << "y: ";
+        } else {
+            std::cout << i<< ": ";
+        }
+        std::cout << vec[size - i - 1] << std::endl;
         
     }
+    
 }
 

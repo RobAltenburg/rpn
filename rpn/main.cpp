@@ -21,21 +21,24 @@
 void callFunction(const std::string &functionName, VectorWrapper &stack, State &runState) {
     
     uint8_t errorCode;
-    // Lookup table
+    // Lookup table that gives the name of the function and the actual function to run
     std::map<std::string, std::function<uint8_t(VectorWrapper&, State&)>> functionTable = {
+        // in the following, x is the top of the stack y is the next element
         {"+", funcAdd},
+        {"add", funcAdd}, // duplicate
         {"sum", funcSum},
-        {"-", funcSubtract},
+        {"-", funcSubtract}, // x - y
         {"*", funcMultiply},
-        {"/", funcDivide},
-        {"^", funcPower},
+        {"/", funcDivide},  // x / y
+        {"^", funcPower},  // y ^ x
+        {"**", funcPower}, // y ^ x
         {"root", funcRoot},
         {"log", funcLog},
         {"log10", funcLog10},
         {"tenX", func10toX},
         {"eX", funcEtoX},
         {"r", funcReciprocal},
-        {"chs", funcChs},
+        {"chs", funcChs},   // change sign x
         {"mod", funcModulo},
         {"sin", funcSin},
         {"asin", funcArcSin},
@@ -49,7 +52,9 @@ void callFunction(const std::string &functionName, VectorWrapper &stack, State &
         {"pi", funcPi},
         {"e", funcE},
         {"sto", funcStore},
-        {"rcl", funcRecall}
+        {"rcl", funcRecall},
+        {"copy", funcCopy}, // copy x to the clipboard
+        {"cp", funcCopy}
         
     };
 
@@ -91,6 +96,10 @@ int main(int argc, const char * argv[]) {
             stack.clear();
         } else if (entry == "look") { // print the stack
             stack.print();
+        } else if (entry == "v") { // turn verbose on
+            runState.verbose = true;
+        } else if (entry == "!v") { // turn verbose off
+            runState.verbose = false;
         } else {                       // process the function
             callFunction(entry, stack, runState);
             //std::cout << stack.look() << std::endl;
@@ -101,5 +110,6 @@ int main(int argc, const char * argv[]) {
         //std::cout << line << "\n";
 
     }
+    // could make this the default funcCopy(stack, runState); // leave the value in x in the clipboard
     return 0;
 }

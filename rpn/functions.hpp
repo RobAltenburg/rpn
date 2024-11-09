@@ -11,19 +11,26 @@
 #include "VectorWrapper.hpp"
 #include <limits>
 #include <cmath>
+#include <string>
+#include <iostream>
+#include <sstream>
 
+#define MEMORY_SIZE 10
 #define ERROR_INFINITY 1
+#define ERROR_COPY 2
 
 // struct State
 //
 struct State {
     int drg;  // 0 = degrees, 1 = radians, 2 = gradians
-    double memory[10]; //memory slots 0 to 9
+    double memory[MEMORY_SIZE]; //memory slots 0 to MEMORY_SIZE - 1
+    bool verbose = false;
 };
 
 // helper functions
 double drgConversion (State &state);
 bool isInteger(double);
+void printDetails(State &state, const std::string& message);
 
 // basic math
 uint8_t funcAdd(VectorWrapper &stack, State &state);
@@ -61,5 +68,7 @@ uint8_t funcE(VectorWrapper &stack, State &state);
 //memory
 uint8_t funcStore(VectorWrapper &stack, State &state);
 uint8_t funcRecall(VectorWrapper &stack, State &state);
+uint8_t funcCopy(VectorWrapper &stack, State &state);
+//uint8_t funcPaste(VectorWrapper &stack, State &state);
 
 #endif /* functions_hpp */
