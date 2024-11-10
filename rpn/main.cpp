@@ -50,7 +50,7 @@ void callFunction(const std::string &functionName, VectorWrapper &stack, State &
         {"cp", funcCopy},
         {"deg", funcDMStoDeg},
         {"dms",funcDegtoDMS},
-        {"lerp",funcLerp}
+        {"lerp",funcLerp},
     };
 
     // Find the function in the table
@@ -91,7 +91,7 @@ int main(int argc, const char * argv[]) {
             std::cout << "> ";
         }
         
-        //bool hasNumber = readLineWithNumber(number, entry); // read a line from cin
+        //bool hasNumber = readLineWithVariant(number, entry); // read a line from cin
         if (readLineWithVarient(number, entry) == EOF) {
             runFlag = false;
         }

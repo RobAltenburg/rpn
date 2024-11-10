@@ -1,11 +1,11 @@
 //
-//  readLineWithNumber.cpp
+//  readLineWithVariant.cpp
 //  rpn
 //
 //  Created by Robert Altenburg on 11/8/24.
 //
 
-#include "readLineWithNumber.hpp"
+#include "readLineWithVariant.hpp"
 
 int readLineWithVarient(VariantType &number, std::string &text) {
     std::string line;

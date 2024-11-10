@@ -17,17 +17,6 @@
 #include "VectorWrapper.hpp"
 #include "errors.hpp"
 
-
-#define MEMORY_SIZE 100
-
-struct State {
-    int drg;  // 0 = degrees, 1 = radians, 2 = gradians
-    bool verbose = false;
-    bool interactive = false;
-    bool eof = false;
-    double memory[MEMORY_SIZE]; //memory slots 0 to MEMORY_SIZE - 1
-};
-
 // helper functions
 double drgConversion (State &state);
 bool isInteger(double);
