@@ -92,7 +92,7 @@ void funcReciprocal(VectorWrapper &stack, State &state) {
         stack.push_back(0);
         throw(ErrorCode::NOT_A_NUMBER);
     } else {
-        stack.push_back(1.0 / stack.pop());
+        stack.push_back(1.0 / denominator);
     }
 }
 

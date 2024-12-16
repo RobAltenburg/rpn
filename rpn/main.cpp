@@ -1,4 +1,3 @@
-//
 //  main.cpp
 //  rpn
 //
@@ -13,44 +12,47 @@ void callFunction(const std::string &functionName, VectorWrapper &stack, State &
     // Lookup table that gives the name of the function and the actual function to run
     std::map<std::string, std::function<void(VectorWrapper&, State&)>> functionTable = {
         // in the following, x is the top of the stack y is the next element
-        {"+", funcAdd},
-        {"add", funcAdd}, // duplicate
-        {"sum", funcSum},
-        {"-", funcSubtract}, // x - y
-        {"*", funcMultiply},
-        {"/", funcDivide},  // x / y
-        {"^", funcPower},  // y ^ x
-        {"**", funcPower}, // y ^ x
-        {"root", funcRoot},
-        {"log", funcLog},
-        {"log10", funcLog10},
         {"tenX", func10toX},
-        {"eX", funcEtoX},
-        {"eeX", funcEtoX},
-        {"r", funcReciprocal},
-        {"chs", funcChs},   // change sign x
-        {"mod", funcModulo},
-        {"%", funcModulo},
-        {"sin", funcSin},
-        {"asin", funcArcSin},
-        {"cos", funcCos},
+        {"add", funcAdd}, // duplicate
+        {"+", funcAdd},
         {"acos", funcArcCos},
-        {"tan", funcTan},
+        {"arccos", funcArcCos},
+        {"asin", funcArcSin},
+        {"arcsin", funcArcSin},
         {"atan", funcArcTan},
-        {"atan2", funcArcTan2},  // atan(y/x)
-        {"pop", funcPop},
-        {"cdr", funcPop},
-        {"d", funcPop},     // delete x
-        {"swp", funcSwap},
-        {"pi", funcPi},
-        {"e", funcE},
-        {"sto", funcStore},
-        {"rcl", funcRecall},
+        {"arctan", funcArcTan},
+        {"atan2", funcArcTan2}, // atan(y/x)
+        {"arctan2", funcArcTan2}, // atan(y/x)
+        {"chs", funcChs}, // change sign x
         {"copy", funcCopy}, // copy x to the clipboard
         {"cp", funcCopy},
-        {"deg", funcDMStoDeg},
+        {"cos", funcCos},
         {"dms",funcDegtoDMS},
+        {"/", funcDivide}, // x / y
+        {"deg", funcDMStoDeg},
+        {"e", funcE},
+        {"eX", funcEtoX},
         {"lerp",funcLerp},
+        {"log", funcLog},
+        {"log10", funcLog10},
+        {"%", funcModulo},
+        {"mod", funcModulo},
+        {"*", funcMultiply},
+        {"pi", funcPi},
+        {"cdr", funcPop},
+        {"d", funcPop},// delete x
+        {"pop", funcPop},
+        {"**", funcPower}, // y ^ x
+        {"^", funcPower}, // y ^ x
+        {"rcl", funcRecall},
+        {"r", funcReciprocal},
+        {"root", funcRoot},
+        {"sin", funcSin},
+        {"sto", funcStore},
+        {"-", funcSubtract}, // x - y
+        {"sum", funcSum},
+        {"swp", funcSwap},
+        {"tan", funcTan}
     };
 
     // Find the function in the table
@@ -110,18 +112,28 @@ int main(int argc, const char * argv[]) {
         // process commands and functions
         if (entry.empty()) {
             // No function found, skipping
+        } else if (entry[0] == '?') { // quit
+            returnHelp(entry);
         } else if (entry == "q") { // quit
             runFlag = false;
         } else if (entry == "c") { // clear the stack
             stack.clear();
         } else if (entry == "look") { // print the stack
             stack.print();
+        } else if (entry == "set deg") { // set degrees
+            runState.drg = DEG;
+        } else if (entry == "set rad") { // set degrees
+            runState.drg = RAD;
+        } else if (entry == "set grd") { // set degrees
+            runState.drg = GRD;
         } else if (entry == "v") { // turn verbose on
             runState.verbose = true;
-            std::cout << "verbose mode on" << "\n";
+            std::cout << "verbose mode on" << std::endl;
         } else if (entry == "!v" || entry == "v!") { // turn verbose off
             runState.verbose = false;
-            std::cout << "verbose mode off" << "\n";
+            std::cout << "verbose mode off" << std::endl;
+        } else if (entry == "h") { // set degrees
+            std::cout << "Hex: " << std::hex << stack.look() << std::endl;
         } else {                       // process the function
             try {
                 callFunction(entry, stack, runState);

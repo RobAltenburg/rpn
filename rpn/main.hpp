@@ -18,6 +18,9 @@
 #include <unistd.h>
 
 #define MEMORY_SIZE 100
+#define DEG 0
+#define RAD 1
+#define GRD 2
 
 struct State {
     int drg;  // 0 = degrees, 1 = radians, 2 = gradians
@@ -31,8 +34,11 @@ struct State {
 #include "functions.hpp"
 #include "readLineWithVariant.hpp"
 #include "errors.hpp"
+#include "help.hpp"
 
 using VariantType = std::variant<double, std::monostate>;
 int readLineWithVariant(VariantType &number, std::string &text);
+
+
 
 #endif /* main_h */
