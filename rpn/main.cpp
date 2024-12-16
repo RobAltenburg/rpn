@@ -116,7 +116,11 @@ int main(int argc, const char * argv[]) {
             returnHelp(entry);
         } else if (entry == "q") { // quit
             runFlag = false;
+        } else if (entry == "quit") { // quit
+            runFlag = false;
         } else if (entry == "c") { // clear the stack
+            stack.clear();
+        } else if (entry == "clear") { // clear the stack
             stack.clear();
         } else if (entry == "look") { // print the stack
             stack.print();
@@ -129,10 +133,10 @@ int main(int argc, const char * argv[]) {
         } else if (entry == "v") { // turn verbose on
             runState.verbose = true;
             std::cout << "verbose mode on" << std::endl;
-        } else if (entry == "!v" || entry == "v!") { // turn verbose off
+        } else if (entry == "v!" || entry == "v!") { // turn verbose off
             runState.verbose = false;
             std::cout << "verbose mode off" << std::endl;
-        } else if (entry == "h") { // set degrees
+        } else if (entry == "hex") { // show hex
             std::cout << "Hex: " << std::hex << stack.look() << std::endl;
         } else {                       // process the function
             try {

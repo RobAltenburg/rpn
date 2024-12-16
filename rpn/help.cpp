@@ -34,7 +34,7 @@ const std::map<std::string, std::string> dataMap = {
     {"deg", "z:deg, y:min, x:sec -> x:deg"},
     {"e", "Constant e"},
     {"eX", "x=e^x"},
-    {"lerp","funcLerp"},
+    {"lerp","linear interpolation x = z + x(y - z)"},
     {"log", "x = log(x)"},
     {"log10", "x = log10(x)"},
     {"%", "x = x % y"},
@@ -54,7 +54,15 @@ const std::map<std::string, std::string> dataMap = {
     {"-", "x = x - y"}, // x - y
     {"sum", "x = sum of stack"},
     {"swp", "swap x and y"},
-    {"tan", "x=tan(x)"}
+    {"tan", "x=tan(x)"},
+    {"quit", "exit"},
+    {"look", "print the stack"},
+    {"set deg", "degree mode"},
+    {"set rad", "radian mode"},
+    {"set grd", "gradian mode"},
+    {"v", "verbose mode on"},
+    {"v!", "verbose mode off"},
+    {"hex", "print stack as hex"}
 };
 
 // Helper function to trim whitespace from a string
