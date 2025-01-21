@@ -42,7 +42,6 @@ void callFunction(const std::string &functionName, VectorWrapper &stack, State &
         {"cdr", funcPop},
         {"d", funcPop},// delete x
         {"pop", funcPop},
-        {"**", funcPower}, // y ^ x
         {"^", funcPower}, // y ^ x
         {"rcl", funcRecall},
         {"r", funcReciprocal},
@@ -110,7 +109,7 @@ int main(int argc, const char * argv[]) {
         */
         
         // process commands and functions
-        if (entry.empty()) {
+        if (entry.empty() || entry == "\n") {
             // No function found, skipping
         } else if (entry[0] == '?') { // quit
             returnHelp(entry);

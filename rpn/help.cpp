@@ -44,7 +44,6 @@ const std::map<std::string, std::string> dataMap = {
     {"cdr", "discard x"},
     {"d", "discard x"},// delete x
     {"pop", "discard x"},
-    {"**", "x = y^x"}, // y ^ x
     {"^", "x = y^x"}, // y ^ x
     {"rcl", "x = memory location x"},
     {"r", "x = 1/x"},
