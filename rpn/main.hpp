@@ -29,10 +29,17 @@
 #define RADIANS 1
 #define GRADIANS 2
 
+#define MODE_DEC 0
+#define MODE_BIN 1
+#define MODE_OCT 2
+#define MODE_HEX 3
+
 struct State {
     int drg;  // 0 = degrees, 1 = radians, 2 = gradians
     double memory[MEMORY_SIZE] = {0}; //memory slots 0 to MEMORY_SIZE - 1
     int precision = 10;
+    int mode = MODE_DEC;
+    std::string last_command = "";
 };
 
 std::string formatDouble(double value, State& state);

@@ -28,6 +28,17 @@ std::string formatDouble(double value, State& state) {
     return result;
 }
 
+double convertToDouble(const std::string& str) {
+    if (str.find("0x") == 0 || str.find("0X") == 0) {
+        return static_cast<double>(std::stoll(str, nullptr, 16));
+    } else if (str.find("0b") == 0 || str.find("0B") == 0) {
+        return static_cast<double>(std::stoll(str.substr(2), nullptr, 2));
+    } else if (str.find("0o") == 0 || str.find("0O") == 0) {
+        return static_cast<double>(std::stoll(str.substr(2), nullptr, 8));
+    } else {
+        return std::stod(str);
+    }
+}
 
 int main(int argc, const char * argv[]) {
     tb_event event;
@@ -35,7 +46,8 @@ int main(int argc, const char * argv[]) {
     State state; // Create an instance of State
     std::string line;
     std::string entry;
-    std::regex pattern(R"(([-+]?\d*\.?\d+([eE][-+]?\d+)?)(.*))");
+    std::regex pattern(R"(([-+]?(0[xX][\da-fA-F]+|0[oO]?[0-7]+|0[bB][01]+|\d*\.?\d+([eE][-+]?\d+)?))(.*))");
+ 
     std::smatch matches;
     double number;
     int write_point;
@@ -90,6 +102,10 @@ int main(int argc, const char * argv[]) {
     functionMap["deg"] =  funcDegrees;
     functionMap["rad"] =  funcRadians;
     functionMap["grd"] =  funcGradians;
+    functionMap["sum"] =  funcSum;
+    
+    functionMap["save"] =  funcSave; // puts the stack size in mem[0] and copies the rest of the stack to memory.
+    functionMap["restore"] =  funcRestore; // pushes the saved values back to the stack
     
     while (true) {
         write_point = 5;
@@ -98,7 +114,7 @@ int main(int argc, const char * argv[]) {
         flag_arrow_down = false;
         stack.removeLeadingZeros(); // removes unnecesary zeros in the stack
         tb_clear();
-        //tb_printf(0, 0, TB_RED, 0, "stack size: %lu", stack.size());
+        tb_printf(0, 0, TB_RED, 0, "last: %s", state.last_command.c_str());
         tb_printf(0, tb_height() - 1, TB_GREEN, 0, "rpn>");
         tb_printf(0, tb_height() - 2, TB_BLUE, 0, "x:  %s", formatDouble(stack.x(),state).c_str());
         tb_printf(0, tb_height() - 3, TB_BLUE, 0, "y:  %s", formatDouble(stack.y(),state).c_str());
@@ -114,7 +130,7 @@ int main(int argc, const char * argv[]) {
         }
         
         // show the memory slots if used
-        int mem_position = tb_height() - 5;
+        int mem_position = tb_height() - 2;
         for (int i = 0; i < MEMORY_SIZE; i++) {
             if (state.memory[i] != 0) {
                 //tb_printf(20, mem_position, TB_MAGENTA, 0, "MEM[%d]:  %g", i, state.memory[i]);
@@ -173,24 +189,29 @@ int main(int argc, const char * argv[]) {
 
 //------------------------------------------------------------Entry Processing
         if (line == "q") break;
+        if (line == ".") line = state.last_command;
         
         try {
             if (std::regex_match(line, matches, pattern)) {
-                number = std::stod(matches[1].str());
-                entry = matches[3].str();
+                number = convertToDouble(matches[1].str());
+                entry = matches[4].str();
                 
-                if (!matches[1].str().empty()) { // There is a number
+                
+                if (!matches[1].str().empty()) { // There is just a number
                     stack.push(number);          // Push it on the stack
                 }
                 
-                if (functionMap.find(entry) != functionMap.end()) {  // just a function
-                    functionMap[entry](stack, state); // Call the function
-                }
+                if (!entry.empty()) { // There is a non-numeric part
+                    if (functionMap.find(entry) != functionMap.end()) {  // just a function
+                        functionMap[entry](stack, state); // Call the function
+                        state.last_command = entry;  // Save it to state.last_command
+                    }}
                 
             } else if (functionMap.find(line) != functionMap.end())  {  // just a function
                 functionMap[line](stack, state); // Call the function
+                state.last_command = line;  // Save it to state.last_command
                 
-            } else if (!flag_arrow_down){ // just a return
+            } else if (!flag_arrow_down && line.empty()){ // just a return
                 stack.push(stack.x());  // push x again
                 
             }

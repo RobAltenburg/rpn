@@ -46,9 +46,9 @@ unsigned long DoubleVector::size() {
     return vec.size();
 }
 
-const std::vector<double>& DoubleVector::getVector() const {
+/*const std::vector<double>& DoubleVector::getVector() const {
     return vec;
-}
+}*/
 
 double DoubleVector::at(int n) {
    if (vec.size() > n) {
@@ -57,7 +57,6 @@ double DoubleVector::at(int n) {
     } else {
         return 0;
     }
-
 }
 
 

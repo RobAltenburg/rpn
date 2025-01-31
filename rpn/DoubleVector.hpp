@@ -21,7 +21,7 @@ public:
     double at(int n);
     unsigned long size();
     void removeLeadingZeros();
-    const std::vector<double>& getVector() const;
+   //const std::vector<double>& getVector() const;
 
 private:
     std::vector<double> vec;

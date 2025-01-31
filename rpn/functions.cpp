@@ -209,3 +209,33 @@ void funcGradians(DoubleVector& dv, State& state) {
 }
  
 
+// sum the entire stack
+void funcSum(DoubleVector& dv, State& state) {
+    double value = 0;
+    for (int i = 0; i <= dv.size() + 1; i++) {
+        value += dv.pop();
+    }
+    dv.push(value);
+}
+
+
+// sum the entire stack
+void funcSave(DoubleVector& dv, State& state) {
+    if (dv.size() > MEMORY_SIZE) {
+        throw ERROR_MEM;
+    } else {
+        // clear the memory
+        state.memory[0] = dv.size();    // store the stack size in 0
+        for (int i = 1; i <= state.memory[0]; i++) {
+                state.memory[i] = dv.at(i - 1);
+            }
+        }
+    }
+    
+void funcRestore(DoubleVector& dv, State& state) {
+    // todo, trap non int in memory[0]
+    for (int i = (int) state.memory[0]; i > 0; i--) {
+        dv.push(state.memory[i]);
+    }
+    
+}

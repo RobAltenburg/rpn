@@ -27,6 +27,7 @@ void funcLog(DoubleVector& dv, State& state);
 void funcLog10(DoubleVector& dv, State& state);
 void funcInverseLog10(DoubleVector& dv, State& state);
 void funcInverseLog(DoubleVector& dv, State& state);
+void funcSum(DoubleVector& dv, State& state);
 
 void funcSin(DoubleVector& dv, State& state);
 void funcCos(DoubleVector& dv, State& state);
@@ -59,5 +60,8 @@ void funcDegrees(DoubleVector& dv, State& state);
 void funcRadians(DoubleVector& dv, State& state);
 void funcGradians(DoubleVector& dv, State& state);
  
+// Copy the stack to memory
+void funcSave(DoubleVector& dv, State& state);
+void funcRestore(DoubleVector& dv, State& state);
 
 #endif /* functions_hpp */
