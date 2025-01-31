@@ -56,15 +56,14 @@ void displayHelp() {
         tb_event event;
         // display the screen
         tb_printf(3, y + 0, TB_GREEN, 0, "-----------------------Help------------------------");
-        tb_printf(3, y + 1, TB_GREEN, 0, "| Math:                                            |");
+        tb_printf(3, y + 1, TB_GREEN, 0, "| Available functions:                             |");
         tb_printf(3, y + 2, TB_GREEN, 0, "|   +, -, *, /, %, ^, root, chs, log, log10, e^x      |");
         tb_printf(3, y + 3, TB_GREEN, 0, "|   ten^x, sin, cos, tan, asin, acos, atan, atan2  |");
         tb_printf(3, y + 4, TB_GREEN, 0, "|   sinh, cosh, tanh, asinh, acosh, atanh, deg,    |");
-        tb_printf(3, y + 5, TB_GREEN, 0, "|   rad, grd, hypot, sum, r (1/x), pi, e, !, gamma |");
-        tb_printf(3, y + 6, TB_GREEN, 0, "| Memory & Stack:                                  |");
-        tb_printf(3, y + 7, TB_GREEN, 0, "|    ~ (swap x y), sto , rcl, mc, pop, save,       |");
-        tb_printf(3, y + 8, TB_GREEN, 0, "|    restore, . (repeat)                           |");
-        tb_printf(3, y + 9, TB_GREEN, 0, "-------------press any key to continue--------------");
+        tb_printf(3, y + 5, TB_GREEN, 0, "|   rad, grd, hypot, sum, inv, pi, e, !, gamma     |");
+        tb_printf(3, y + 6, TB_GREEN, 0, "|   ~ [swap x y], sto , rcl, mc, pop, save, hex    |");
+        tb_printf(3, y + 7, TB_GREEN, 0, "|   restore, . [repeat]                            |");
+        tb_printf(3, y + 8, TB_GREEN, 0, "-------------press any key to continue--------------");
         tb_present();
         tb_poll_event(&event);
     }
@@ -74,7 +73,7 @@ void displayHex(DoubleVector& stack) {
     tb_event event;
     for (int i = 0; i <= tb_height(); i++) {
         if (stack.size() > i) {
-            tb_printf(10, tb_height() - (i + 2), TB_MAGENTA, 0, "%x", static_cast<int>(stack.at(i)));
+            tb_printf(15, tb_height() - (i + 2), TB_MAGENTA, 0, "%x", static_cast<int>(stack.at(i)));
         }
     }
     tb_present();
@@ -109,6 +108,7 @@ int main(int argc, const char * argv[]) {
     functionMap["/"] = funcDivide;
     functionMap["%"] = funcModulo;
     functionMap["r"] = funcReciprocal;
+    functionMap["inv"] = funcReciprocal;
     functionMap["^"] = funcPower;
     functionMap["pow"] = funcPower;
     functionMap["root"] = funcRoot;
