@@ -40,6 +40,28 @@ double convertToDouble(const std::string& str) {
     }
 }
 
+void displayHelp() {
+    int y = tb_height() - 15;
+    if (tb_height() - 3 < 11) {
+        // screen too small  ^^ changethe above to make 10 the actual number
+    } else {
+        tb_event event;
+        // display the screen
+        tb_printf(3, y + 0, TB_GREEN, 0, "-----------------------Help-----------------------");
+        tb_printf(3, y + 1, TB_GREEN, 0, "| Math:                                           |");
+        tb_printf(3, y + 2, TB_GREEN, 0, "|   +, -, *, /, %, ^, root, chs, log, log10, e^x     |");
+        tb_printf(3, y + 3, TB_GREEN, 0, "|   ten^x, sin, cos, tan, asin, acos, atan, atan2 |");
+        tb_printf(3, y + 4, TB_GREEN, 0, "|   sinh, cosh, tanh, asinh, acosh, atanh, deg,   |");
+        tb_printf(3, y + 5, TB_GREEN, 0, "|   rad, grd, hypot, sum, r (1/x), pi, e          |");
+        tb_printf(3, y + 6, TB_GREEN, 0, "| Memory & Stack:                                 |");
+        tb_printf(3, y + 7, TB_GREEN, 0, "|    ~ (swap x y), sto , rcl, mc, pop, save,      |");
+        tb_printf(3, y + 8, TB_GREEN, 0, "|    restore                                      |");
+        tb_printf(3, y + 9, TB_GREEN, 0, "-------------press any key to continue-------------");
+        tb_present();
+        tb_poll_event(&event);
+    }
+}
+
 int main(int argc, const char * argv[]) {
     tb_event event;
     DoubleVector stack;
@@ -114,7 +136,7 @@ int main(int argc, const char * argv[]) {
         flag_arrow_down = false;
         stack.removeLeadingZeros(); // removes unnecesary zeros in the stack
         tb_clear();
-        tb_printf(0, 0, TB_RED, 0, "last: %s", state.last_command.c_str());
+        tb_printf(tb_width() - (int) state.last_command.length(), tb_height() - 1, TB_RED, 0, "%s", state.last_command.c_str());
         tb_printf(0, tb_height() - 1, TB_GREEN, 0, "rpn>");
         tb_printf(0, tb_height() - 2, TB_BLUE, 0, "x:  %s", formatDouble(stack.x(),state).c_str());
         tb_printf(0, tb_height() - 3, TB_BLUE, 0, "y:  %s", formatDouble(stack.y(),state).c_str());
@@ -190,6 +212,7 @@ int main(int argc, const char * argv[]) {
 //------------------------------------------------------------Entry Processing
         if (line == "q") break;
         if (line == ".") line = state.last_command;
+        if (line == "?") displayHelp();
         
         try {
             if (std::regex_match(line, matches, pattern)) {

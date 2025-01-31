@@ -43,5 +43,6 @@ struct State {
 };
 
 std::string formatDouble(double value, State& state);
+void displayHelp(void);
 
 #endif /* main_hpp */
