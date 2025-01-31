@@ -28,6 +28,8 @@ void funcLog10(DoubleVector& dv, State& state);
 void funcInverseLog10(DoubleVector& dv, State& state);
 void funcInverseLog(DoubleVector& dv, State& state);
 void funcSum(DoubleVector& dv, State& state);
+void funcGamma(DoubleVector& dv, State& state);
+void funcFactorial(DoubleVector& dv, State& state);
 
 void funcSin(DoubleVector& dv, State& state);
 void funcCos(DoubleVector& dv, State& state);

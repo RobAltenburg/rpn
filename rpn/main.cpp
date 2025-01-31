@@ -14,16 +14,24 @@ std::set<char> immediateChars = {'+', '-', '*', '/', '^', '%'}; // List of immed
     
 std::string formatDouble(double value, State& state) {
     std::ostringstream oss;
+    std::string result;
     oss.precision(state.precision);
-    oss << std::fixed << value;
-    std::string result = oss.str();
-    
-    // Remove trailing zeros
-    result.erase(result.find_last_not_of('0') + 1, std::string::npos);
-    // Remove the decimal point if it's the last character
-    if (result.back() == '.') {
-        result.pop_back();
+    oss.imbue(std::locale(""));  // Use the system's default locale
+    if (value > MAX_FIX) {
+        oss << std::scientific << value;
+        result = oss.str();
+    } else {
+        oss << std::fixed << value;
+        result = oss.str();
+        
+        // Remove trailing zeros
+        result.erase(result.find_last_not_of('0') + 1, std::string::npos);
+        // Remove the decimal point if it's the last character
+        if (result.back() == '.') {
+            result.pop_back();
+        }
     }
+
     
     return result;
 }
@@ -47,16 +55,16 @@ void displayHelp() {
     } else {
         tb_event event;
         // display the screen
-        tb_printf(3, y + 0, TB_GREEN, 0, "-----------------------Help-----------------------");
-        tb_printf(3, y + 1, TB_GREEN, 0, "| Math:                                           |");
-        tb_printf(3, y + 2, TB_GREEN, 0, "|   +, -, *, /, %, ^, root, chs, log, log10, e^x     |");
-        tb_printf(3, y + 3, TB_GREEN, 0, "|   ten^x, sin, cos, tan, asin, acos, atan, atan2 |");
-        tb_printf(3, y + 4, TB_GREEN, 0, "|   sinh, cosh, tanh, asinh, acosh, atanh, deg,   |");
-        tb_printf(3, y + 5, TB_GREEN, 0, "|   rad, grd, hypot, sum, r (1/x), pi, e          |");
-        tb_printf(3, y + 6, TB_GREEN, 0, "| Memory & Stack:                                 |");
-        tb_printf(3, y + 7, TB_GREEN, 0, "|    ~ (swap x y), sto , rcl, mc, pop, save,      |");
-        tb_printf(3, y + 8, TB_GREEN, 0, "|    restore, . (repeat)                          |");
-        tb_printf(3, y + 9, TB_GREEN, 0, "-------------press any key to continue-------------");
+        tb_printf(3, y + 0, TB_GREEN, 0, "-----------------------Help------------------------");
+        tb_printf(3, y + 1, TB_GREEN, 0, "| Math:                                            |");
+        tb_printf(3, y + 2, TB_GREEN, 0, "|   +, -, *, /, %, ^, root, chs, log, log10, e^x      |");
+        tb_printf(3, y + 3, TB_GREEN, 0, "|   ten^x, sin, cos, tan, asin, acos, atan, atan2  |");
+        tb_printf(3, y + 4, TB_GREEN, 0, "|   sinh, cosh, tanh, asinh, acosh, atanh, deg,    |");
+        tb_printf(3, y + 5, TB_GREEN, 0, "|   rad, grd, hypot, sum, r (1/x), pi, e, !, gamma |");
+        tb_printf(3, y + 6, TB_GREEN, 0, "| Memory & Stack:                                  |");
+        tb_printf(3, y + 7, TB_GREEN, 0, "|    ~ (swap x y), sto , rcl, mc, pop, save,       |");
+        tb_printf(3, y + 8, TB_GREEN, 0, "|    restore, . (repeat)                           |");
+        tb_printf(3, y + 9, TB_GREEN, 0, "-------------press any key to continue--------------");
         tb_present();
         tb_poll_event(&event);
     }
@@ -125,6 +133,8 @@ int main(int argc, const char * argv[]) {
     functionMap["rad"] =  funcRadians;
     functionMap["grd"] =  funcGradians;
     functionMap["sum"] =  funcSum;
+    functionMap["gamma"] =  funcGamma;
+    functionMap["!"] =  funcFactorial;
     
     functionMap["save"] =  funcSave; // puts the stack size in mem[0] and copies the rest of the stack to memory.
     functionMap["restore"] =  funcRestore; // pushes the saved values back to the stack

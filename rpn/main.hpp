@@ -34,6 +34,9 @@
 #define MODE_OCT 2
 #define MODE_HEX 3
 
+// numbers higher than this are always scientific notation.
+#define MAX_FIX 1e+10
+
 struct State {
     int drg;  // 0 = degrees, 1 = radians, 2 = gradians
     double memory[MEMORY_SIZE] = {0}; //memory slots 0 to MEMORY_SIZE - 1

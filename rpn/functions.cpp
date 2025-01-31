@@ -218,6 +218,13 @@ void funcSum(DoubleVector& dv, State& state) {
     dv.push(value);
 }
 
+void funcGamma(DoubleVector& dv, State& state) {
+    dv.push(lgamma(dv.pop()));
+}
+void funcFactorial(DoubleVector& dv, State& state) {
+    dv.push(exp(lgamma(dv.pop() + 1)));
+}
+
 
 // sum the entire stack
 void funcSave(DoubleVector& dv, State& state) {
