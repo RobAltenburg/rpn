@@ -55,7 +55,7 @@ void displayHelp() {
         tb_printf(3, y + 5, TB_GREEN, 0, "|   rad, grd, hypot, sum, r (1/x), pi, e          |");
         tb_printf(3, y + 6, TB_GREEN, 0, "| Memory & Stack:                                 |");
         tb_printf(3, y + 7, TB_GREEN, 0, "|    ~ (swap x y), sto , rcl, mc, pop, save,      |");
-        tb_printf(3, y + 8, TB_GREEN, 0, "|    restore                                      |");
+        tb_printf(3, y + 8, TB_GREEN, 0, "|    restore, . (repeat)                          |");
         tb_printf(3, y + 9, TB_GREEN, 0, "-------------press any key to continue-------------");
         tb_present();
         tb_poll_event(&event);
