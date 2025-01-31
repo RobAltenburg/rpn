@@ -70,6 +70,17 @@ void displayHelp() {
     }
 }
 
+void displayHex(DoubleVector& stack) {
+    tb_event event;
+    for (int i = 0; i <= tb_height(); i++) {
+        if (stack.size() > i) {
+            tb_printf(10, tb_height() - (i + 2), TB_MAGENTA, 0, "%x", static_cast<int>(stack.at(i)));
+        }
+    }
+    tb_present();
+    tb_poll_event(&event);
+}
+
 int main(int argc, const char * argv[]) {
     tb_event event;
     DoubleVector stack;
@@ -223,6 +234,7 @@ int main(int argc, const char * argv[]) {
         if (line == "q") break;
         if (line == ".") line = state.last_command;
         if (line == "?") displayHelp();
+        if (line == "hex") displayHex(stack);
         
         try {
             if (std::regex_match(line, matches, pattern)) {
