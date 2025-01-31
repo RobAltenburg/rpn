@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		5129BC772D4C7C550012F0BF /* libtermbox2.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5129BC762D4C7C550012F0BF /* libtermbox2.a */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXCopyFilesBuildPhase section */
 		511ABAE02CDDB2E00020E306 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
@@ -20,6 +24,8 @@
 
 /* Begin PBXFileReference section */
 		511ABAE22CDDB2E00020E306 /* rpn */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = rpn; sourceTree = BUILT_PRODUCTS_DIR; };
+		5129BC742D4C7BF70012F0BF /* termbox2.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = termbox2.h; path = ../../../../usr/local/include/termbox2.h; sourceTree = "<group>"; };
+		5129BC762D4C7C550012F0BF /* libtermbox2.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libtermbox2.a; path = ../../../../usr/local/lib/libtermbox2.a; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -35,6 +41,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5129BC772D4C7C550012F0BF /* libtermbox2.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -45,6 +52,7 @@
 			isa = PBXGroup;
 			children = (
 				511ABAE42CDDB2E00020E306 /* rpn */,
+				5129BC732D4C7BF70012F0BF /* Frameworks */,
 				511ABAE32CDDB2E00020E306 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -55,6 +63,15 @@
 				511ABAE22CDDB2E00020E306 /* rpn */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		5129BC732D4C7BF70012F0BF /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				5129BC762D4C7C550012F0BF /* libtermbox2.a */,
+				5129BC742D4C7BF70012F0BF /* termbox2.h */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -245,6 +262,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				"HEADER_SEARCH_PATHS[arch=*]" = /usr/local/include;
+				"LIBRARY_SEARCH_PATHS[arch=*]" = /usr/local/lib;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -253,6 +272,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				"HEADER_SEARCH_PATHS[arch=*]" = /usr/local/include;
+				"LIBRARY_SEARCH_PATHS[arch=*]" = /usr/local/lib;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;

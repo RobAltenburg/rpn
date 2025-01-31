@@ -1,71 +1,63 @@
 //
 //  functions.hpp
-//  rpn
+//  rpn2
 //
-//  Created by Robert Altenburg on 11/8/24.
+//  Created by Robert Altenburg on 1/30/25.
 //
 
 #ifndef functions_hpp
 #define functions_hpp
-
-#include <limits>
-#include <cmath>
-#include <string>
-#include <iostream>
-#include <sstream>
 #include "main.hpp"
-#include "VectorWrapper.hpp"
-#include "errors.hpp"
+#include "DoubleVector.hpp"
 
-// helper functions
-double drgConversion (State &state);
-bool isInteger(double);
-void printDetails(State &state, const std::string& message);
+#include <stdio.h>
+double toRadians (double num, State& state);
+double fromRadians (double num, State& state);
 
-// basic math
-void funcAdd(VectorWrapper &stack, State &state);
-void funcSum(VectorWrapper &stack, State &state);
-void funcSubtract(VectorWrapper &stack, State &state);
-void funcMultiply(VectorWrapper &stack, State &state);
-void funcDivide(VectorWrapper &stack, State &state);
-void funcPower(VectorWrapper &stack, State &state);
-void funcRoot(VectorWrapper &stack, State &state);
-void funcReciprocal(VectorWrapper &stack, State &state);
-void funcChs(VectorWrapper &stack, State &state);
-void funcModulo(VectorWrapper &stack, State &state);
-void funcLog(VectorWrapper &stack, State &state);
-void funcLog10(VectorWrapper &stack, State &state);
-void func10toX(VectorWrapper &stack, State &state);
-void funcEtoX(VectorWrapper &stack, State &state);
+void funcAdd(DoubleVector& dv, State& state);
+void funcSubtract(DoubleVector& dv, State& state);
+void funcMultiply(DoubleVector& dv, State& state);
+void funcDivide(DoubleVector& dv, State& state);
+void funcPower(DoubleVector& dv, State& state);
+void funcRoot(DoubleVector& dv, State& state);
+void funcReciprocal(DoubleVector& dv, State& state);
+void funcChangeSign(DoubleVector& dv, State& state);
+void funcModulo(DoubleVector& dv, State& state);
+void funcLog(DoubleVector& dv, State& state);
+void funcLog10(DoubleVector& dv, State& state);
+void funcInverseLog10(DoubleVector& dv, State& state);
+void funcInverseLog(DoubleVector& dv, State& state);
 
-// trig
-void funcSin(VectorWrapper &stack, State &state);
-void funcCos(VectorWrapper &stack, State &state);
-void funcTan(VectorWrapper &stack, State &state);
-void funcArcSin(VectorWrapper &stack, State &state);
-void funcArcCos(VectorWrapper &stack, State &state);
-void funcArcTan(VectorWrapper &stack, State &state);
-void funcArcTan2(VectorWrapper &stack, State &state);
+void funcSin(DoubleVector& dv, State& state);
+void funcCos(DoubleVector& dv, State& state);
+void funcTan(DoubleVector& dv, State& state);
+void funcArcSin(DoubleVector& dv, State& state);
+void funcArcCos(DoubleVector& dv, State& state);
+void funcArcTan(DoubleVector& dv, State& state);
+void funcArcTan2(DoubleVector& dv, State& state);
 
-//tertiary
-void funcDMStoDeg(VectorWrapper &stack, State &state);
-void funcDegtoDMS(VectorWrapper &stack, State &state);
+void funcSinh(DoubleVector& dv, State& state);
+void funcCosh(DoubleVector& dv, State& state);
+void funcTanh(DoubleVector& dv, State& state);
+void funcArcSinh(DoubleVector& dv, State& state);
+void funcArcCosh(DoubleVector& dv, State& state);
+void funcArcTanh(DoubleVector& dv, State& state);
 
-// stack
-void funcPop(VectorWrapper &stack, State &state);
-void funcSwap(VectorWrapper &stack, State &state);
+void funcStore(DoubleVector& dv, State& state);
+void funcRecall(DoubleVector& dv, State& state);
+void funcMemoryClear(DoubleVector& dv, State& state);
 
-//constants
-void funcPi(VectorWrapper &stack, State &state);
-void funcE(VectorWrapper &stack, State &state);
+void funcPop(DoubleVector& dv, State& state);
+void funcSwap(DoubleVector& dv, State& state);
 
-//interpolation
-void funcLerp(VectorWrapper &stack, State &state);
+void funcPi(DoubleVector& dv, State& state);
+void funcE(DoubleVector& dv, State& state);
 
-//memory
-void funcStore(VectorWrapper &stack, State &state);
-void funcRecall(VectorWrapper &stack, State &state);
-void funcCopy(VectorWrapper &stack, State &state);
-//void funcPaste(VectorWrapper &stack, State &state);
+void funcHypotenuse(DoubleVector& dv, State& state);
+
+void funcDegrees(DoubleVector& dv, State& state);
+void funcRadians(DoubleVector& dv, State& state);
+void funcGradians(DoubleVector& dv, State& state);
+ 
 
 #endif /* functions_hpp */

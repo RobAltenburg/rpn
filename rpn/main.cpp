@@ -1,152 +1,211 @@
-//  main.cpp
-//  rpn
 //
-//  Created by Robert Altenburg on 11/7/24.
+//  main.cpp
+//  rpn2
+//
+//  Created by Robert Altenburg on 1/29/25.
 //
 
 #include "main.hpp"
+#include "functions.hpp"
+#include "DoubleVector.hpp"
 
-// Map input codes to their functions
-void callFunction(const std::string &functionName, VectorWrapper &stack, State &runState) {
+using FunctionType = void(*)(DoubleVector&, State&);
+std::set<char> immediateChars = {'+', '-', '*', '/', '^', '%'}; // List of immediate operators
     
-    // Lookup table that gives the name of the function and the actual function to run
-    std::map<std::string, std::function<void(VectorWrapper&, State&)>> functionTable = {
-        // in the following, x is the top of the stack y is the next element
-        {"tenX", func10toX},
-        {"add", funcAdd}, // duplicate
-        {"+", funcAdd},
-        {"acos", funcArcCos},
-        {"arccos", funcArcCos},
-        {"asin", funcArcSin},
-        {"arcsin", funcArcSin},
-        {"atan", funcArcTan},
-        {"arctan", funcArcTan},
-        {"atan2", funcArcTan2}, // atan(y/x)
-        {"arctan2", funcArcTan2}, // atan(y/x)
-        {"chs", funcChs}, // change sign x
-        {"copy", funcCopy}, // copy x to the clipboard
-        {"cp", funcCopy},
-        {"cos", funcCos},
-        {"dms",funcDegtoDMS},
-        {"/", funcDivide}, // x / y
-        {"deg", funcDMStoDeg},
-        {"e", funcE},
-        {"eX", funcEtoX},
-        {"lerp",funcLerp},
-        {"log", funcLog},
-        {"log10", funcLog10},
-        {"%", funcModulo},
-        {"mod", funcModulo},
-        {"*", funcMultiply},
-        {"pi", funcPi},
-        {"cdr", funcPop},
-        {"d", funcPop},// delete x
-        {"pop", funcPop},
-        {"^", funcPower}, // y ^ x
-        {"rcl", funcRecall},
-        {"r", funcReciprocal},
-        {"root", funcRoot},
-        {"sin", funcSin},
-        {"sto", funcStore},
-        {"-", funcSubtract}, // x - y
-        {"sum", funcSum},
-        {"swp", funcSwap},
-        {"tan", funcTan}
-    };
-
-    // Find the function in the table
-    auto it = functionTable.find(functionName);
-    if (it != functionTable.end()) {
-        // Call the function
-        it->second(stack, runState);
-    } else {
-        throw(ErrorCode::UNKNOWN_FUNCTION);
+std::string formatDouble(double value, State& state) {
+    std::ostringstream oss;
+    oss.precision(state.precision);
+    oss << std::fixed << value;
+    std::string result = oss.str();
+    
+    // Remove trailing zeros
+    result.erase(result.find_last_not_of('0') + 1, std::string::npos);
+    // Remove the decimal point if it's the last character
+    if (result.back() == '.') {
+        result.pop_back();
     }
+    
+    return result;
 }
 
+
 int main(int argc, const char * argv[]) {
-    VectorWrapper stack;        // vector for the stack
-    // double number;              // input number
-    VariantType number;
-    std::string entry;          // input line
-    bool runFlag = true;        // process loop
-    State runState = {0};       // run state
+    tb_event event;
+    DoubleVector stack;
+    State state; // Create an instance of State
+    std::string line;
+    std::string entry;
+    std::regex pattern(R"(([-+]?\d*\.?\d+([eE][-+]?\d+)?)(.*))");
+    std::smatch matches;
+    double number;
+    int write_point;
+    char last_character;
+    bool flag_arrow_down = false;
     
-    std::string locale = "en"; // This could be dynamically set based on user preference
-    loadErrorMessages(locale);
-    
-    // Is the program running interactivly, or is it being piped data
-    if (isatty(fileno(stdin))) {
-        std::cout << "rpn:" << std::endl; // Interactuive
-        runState.interactive = true;
-    } else {
-       // reading data from a pipe
-        runState.interactive = false; // this should be the default
-        runState.verbose = true;
+    // Initialize the Termbox library
+    int init_result = tb_init();
+    if (init_result != 0) {
+        fprintf(stderr, "Init Termbox Error: %s\n", tb_strerror(init_result));
+        return 1;
     }
-     
+
+    std::map<std::string, FunctionType> functionMap;
+    functionMap["+"] = funcAdd;
+    functionMap["-"] = funcSubtract;
+    functionMap["*"] = funcMultiply;
+    functionMap["/"] = funcDivide;
+    functionMap["%"] = funcModulo;
+    functionMap["r"] = funcReciprocal;
+    functionMap["^"] = funcPower;
+    functionMap["pow"] = funcPower;
+    functionMap["root"] = funcRoot;
+    functionMap["sin"] = funcSin;
+    functionMap["cos"] = funcCos;
+    functionMap["tan"] = funcTan;
+    functionMap["asin"] = funcArcSin;
+    functionMap["acos"] = funcArcCos;
+    functionMap["atan"] = funcArcTan;
+    functionMap["atan2"] = funcArcTan2;
+    functionMap["sinh"] = funcSinh;
+    functionMap["cosh"] = funcCosh;
+    functionMap["tanh"] = funcTanh;
+    functionMap["asinh"] = funcArcSinh;
+    functionMap["acosh"] = funcArcCosh;
+    functionMap["atanh"] = funcArcTanh;
+    functionMap["log"] = funcLog;
+    functionMap["log10"] = funcLog10;
+    functionMap["invlog"] = funcInverseLog;
+    functionMap["e^x"] = funcInverseLog;
+    functionMap["invlog10"] = funcInverseLog10;
+    functionMap["ten^x"] = funcInverseLog10;
+    functionMap["chs"] = funcChangeSign;
+    functionMap["pop"] = funcPop;
+    functionMap["~"] = funcSwap;
+    functionMap["sto"] = funcStore;
+    functionMap["rcl"] = funcRecall;
+    functionMap["mc"] = funcMemoryClear;
+    functionMap["pi"] = funcPi;
+    functionMap["e"] = funcE;
+    functionMap["hypot"] =  funcHypotenuse;
+    functionMap["deg"] =  funcDegrees;
+    functionMap["rad"] =  funcRadians;
+    functionMap["grd"] =  funcGradians;
     
-    while (runFlag) {
-        stack.print();
-        if (runState.interactive) { // only prompt in interactive mode
-            std::cout << "> ";
-        }
+    while (true) {
+        write_point = 5;
+        line = "";
+        last_character = ' ';
+        flag_arrow_down = false;
+        stack.removeLeadingZeros(); // removes unnecesary zeros in the stack
+        tb_clear();
+        //tb_printf(0, 0, TB_RED, 0, "stack size: %lu", stack.size());
+        tb_printf(0, tb_height() - 1, TB_GREEN, 0, "rpn>");
+        tb_printf(0, tb_height() - 2, TB_BLUE, 0, "x:  %s", formatDouble(stack.x(),state).c_str());
+        tb_printf(0, tb_height() - 3, TB_BLUE, 0, "y:  %s", formatDouble(stack.y(),state).c_str());
+        tb_printf(0, tb_height() - 4, TB_BLUE, 0, "z:  %s", formatDouble(stack.z(),state).c_str());
         
-        //bool hasNumber = readLineWithVariant(number, entry); // read a line from cin
-        if (readLineWithVarient(number, entry) == EOF) {
-            runFlag = false;
-        }
-        
-        if (!std::holds_alternative<std::monostate>(number)) {
-            double num = std::get<double>(number);
-            stack.push_back(num);
-        }
-        
-        /*
-        if (hasNumber) {
-            stack.push_back(number); // if a number was entered, push it to the stack
-        }
-        */
-        
-        // process commands and functions
-        if (entry.empty() || entry == "\n") {
-            // No function found, skipping
-        } else if (entry[0] == '?') { // quit
-            returnHelp(entry);
-        } else if (entry == "q") { // quit
-            runFlag = false;
-        } else if (entry == "quit") { // quit
-            runFlag = false;
-        } else if (entry == "c") { // clear the stack
-            stack.clear();
-        } else if (entry == "clear") { // clear the stack
-            stack.clear();
-        } else if (entry == "look") { // print the stack
-            stack.print();
-        } else if (entry == "set deg") { // set degrees
-            runState.drg = DEG;
-        } else if (entry == "set rad") { // set degrees
-            runState.drg = RAD;
-        } else if (entry == "set grd") { // set degrees
-            runState.drg = GRD;
-        } else if (entry == "v") { // turn verbose on
-            runState.verbose = true;
-            std::cout << "verbose mode on" << std::endl;
-        } else if (entry == "v!" || entry == "v!") { // turn verbose off
-            runState.verbose = false;
-            std::cout << "verbose mode off" << std::endl;
-        } else if (entry == "hex") { // show hex
-            std::cout << "Hex: " << std::hex << stack.look() << std::endl;
-        } else {                       // process the function
-            try {
-                callFunction(entry, stack, runState);
-            } catch (ErrorCode errorCode) {
-                processError(errorCode);
+        // show the extended stack if it is needed
+        if (stack.size() > 3) {
+            for (int i = 4; i <= tb_height(); i++) {
+                if (stack.size() >= i) {
+                    tb_printf(0, tb_height() - (i + 1), TB_BLUE, 0, "%d:  %s", i, formatDouble(stack.at(i-1),state).c_str());
+                }
             }
         }
-        entry = ""; // clear the entry
-        //stack.print();
-    }
-    // could make this the default funcCopy(stack, runState); // leave the value in x in the clipboard
+        
+        // show the memory slots if used
+        int mem_position = tb_height() - 5;
+        for (int i = 0; i < MEMORY_SIZE; i++) {
+            if (state.memory[i] != 0) {
+                //tb_printf(20, mem_position, TB_MAGENTA, 0, "MEM[%d]:  %g", i, state.memory[i]);
+                tb_printf(20, mem_position, TB_MAGENTA, 0, "MEM[%d]:  %s", i, formatDouble(state.memory[i],state).c_str());
+                mem_position--;
+            }
+            
+        }
+        
+        // show the degree setting
+        if (state.drg == RADIANS) {
+            tb_printf(tb_width() - 3, 0, TB_MAGENTA, 0, "rad");
+        } else if (state.drg == GRADIANS) {
+            tb_printf(tb_width() - 3, 0, TB_MAGENTA, 0, "grd");
+        }
+        
+        tb_present();
+        while (true) {
+            // Event loop
+            tb_poll_event(&event);
+            if (event.key == TB_KEY_ENTER) {                        // If ENTER, line is complete
+                break;
+            } else if (((event.key == 127) ||                       // Process backspace
+                        (event.key == TB_KEY_BACKSPACE) ||
+                        (event.key == TB_KEY_BACKSPACE2) ||
+                        (event.key == TB_KEY_DELETE)) && write_point > 5) {
+                    write_point--;
+                    tb_printf(write_point, tb_height() - 1, TB_RED, 0, " ");
+                    tb_present();
+                    if (!line.empty()) {
+                        line.pop_back();
+                        if (!line.empty()) {
+                            last_character = line.back();
+                        } else {
+                            last_character = ' ';
+                        }
+                    }
+            } else if (event.key == TB_KEY_ARROW_DOWN) {
+                stack.pop();
+                flag_arrow_down = true;
+                break;
+                
+            } else if (event.ch != 0) {                         // Process the characters
+                
+                    line += event.ch;
+                    tb_printf(write_point, tb_height() - 1, TB_BLUE, 0, "%c", event.ch);
+                    tb_present();
+                    write_point++;
+                
+                    if ((immediateChars.find(event.ch) != immediateChars.end())         //
+                            && (last_character != 'e') && (last_character != 'E')) break;
+           
+                    last_character = event.ch; // needed to check that + or - isn't part of scientific notation
+            }
+        } // completed loop for reading one line
+
+//------------------------------------------------------------Entry Processing
+        if (line == "q") break;
+        
+        try {
+            if (std::regex_match(line, matches, pattern)) {
+                number = std::stod(matches[1].str());
+                entry = matches[3].str();
+                
+                if (!matches[1].str().empty()) { // There is a number
+                    stack.push(number);          // Push it on the stack
+                }
+                
+                if (functionMap.find(entry) != functionMap.end()) {  // just a function
+                    functionMap[entry](stack, state); // Call the function
+                }
+                
+            } else if (functionMap.find(line) != functionMap.end())  {  // just a function
+                functionMap[line](stack, state); // Call the function
+                
+            } else if (!flag_arrow_down){ // just a return
+                stack.push(stack.x());  // push x again
+                
+            }
+        }
+        
+        catch (int error_number) {
+            tb_printf(0, tb_height() - 1, TB_RED, 0, "ERROR %d", error_number);
+                tb_present();
+                usleep(2000000); // 2 second delay
+        }
+        
+        
+    } // completed processing loop
+    
+    tb_shutdown();
+    system("reset");
     return 0;
 }
