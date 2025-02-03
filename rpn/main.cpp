@@ -8,6 +8,7 @@
 #include "main.hpp"
 #include "functions.hpp"
 #include "DoubleVector.hpp"
+#include "conversions.hpp"
 
 using FunctionType = void(*)(DoubleVector&, State&);
 std::set<char> immediateChars = {'+', '-', '*', '/', '^', '%'}; // List of immediate operators
@@ -87,6 +88,7 @@ int main(int argc, const char * argv[]) {
     std::string line;
     std::string entry;
     std::regex pattern(R"(([-+]?(0[xX][\da-fA-F]+|0[oO]?[0-7]+|0[bB][01]+|\d*\.?\d+([eE][-+]?\d+)?))(.*))");
+    std::regex conversionPattern(R"(\s*(\w+)\s*to\s*(\w+)\s*)");
  
     std::smatch matches;
     double number;
@@ -240,7 +242,7 @@ int main(int argc, const char * argv[]) {
             if (std::regex_match(line, matches, pattern)) {
                 number = convertToDouble(matches[1].str());
                 entry = matches[4].str();
-                
+
                 
                 if (!matches[1].str().empty()) { // There is just a number
                     stack.push(number);          // Push it on the stack
@@ -250,7 +252,13 @@ int main(int argc, const char * argv[]) {
                     if (functionMap.find(entry) != functionMap.end()) {  // just a function
                         functionMap[entry](stack, state); // Call the function
                         state.last_command = entry;  // Save it to state.last_command
-                    }}
+                    } else if (std::regex_match(line, matches, conversionPattern)) { // check if units conversion.
+                        if (matches.size() == 3) {
+                            std::string from_unit = matches[1].str();
+                            std::string to_unit = matches[2].str();
+                            stack.push (convert_units(stack, from_unit, to_unit));
+                        }}
+                }
                 
             } else if (functionMap.find(line) != functionMap.end())  {  // just a function
                 functionMap[line](stack, state); // Call the function
@@ -259,7 +267,13 @@ int main(int argc, const char * argv[]) {
             } else if (!flag_arrow_down && line.empty()){ // just a return
                 stack.push(stack.x());  // push x again
                 
-            }
+            } else if (std::regex_match(line, matches, conversionPattern)) { // check if units conversion.
+                if (matches.size() == 3) {
+                    std::string from_unit = matches[1].str();
+                    std::string to_unit = matches[2].str();
+                    stack.push (convert_units(stack, from_unit, to_unit));
+                }}
+
         }
         
         catch (int error_number) {
