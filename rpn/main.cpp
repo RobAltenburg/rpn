@@ -252,7 +252,7 @@ int main(int argc, const char * argv[]) {
                     if (functionMap.find(entry) != functionMap.end()) {  // just a function
                         functionMap[entry](stack, state); // Call the function
                         state.last_command = entry;  // Save it to state.last_command
-                    } else if (std::regex_match(line, matches, conversionPattern)) { // check if units conversion.
+                    } else if (std::regex_match(entry, matches, conversionPattern)) { // check if units conversion.
                         if (matches.size() == 3) {
                             std::string from_unit = matches[1].str();
                             std::string to_unit = matches[2].str();
