@@ -1,0 +1,64 @@
+#ifndef RPN_H
+#define RPN_H
+
+#include <stack>
+#include <string>
+#include <map>
+#include <vector>
+
+class RPNCalculator {
+public:
+    RPNCalculator();
+    
+    // Main entry point
+    void run();
+    
+    // Stack operations - these need to be public for operators to access
+    void pushStack(double value);
+    double popStack();  // Returns 0 if empty
+    double peekStack() const;  // Returns 0 if empty
+    bool isStackEmpty() const;
+    size_t stackSize() const;
+    void clearStack();
+    void printStack() const;
+    
+    // Memory operations
+    void storeMemory(int location, double value);
+    double recallMemory(int location) const;
+    
+    // Settings
+    void setAngleMode(const std::string& mode);
+    std::string getAngleMode() const;
+    void setScale(int s);
+    int getScale() const;
+    
+    // Angle conversions
+    double toRadians(double angle) const;
+    double fromRadians(double angle) const;
+    
+    // Output
+    void print(double value) const;
+    void printError(const std::string& message) const;
+    
+private:
+    enum class AngleMode { RADIANS, DEGREES, GRADIANS };
+    
+    std::stack<double> stack_;
+    std::map<int, double> memory_;
+    AngleMode angleMode_;
+    int scale_;
+    
+    // Helper methods
+    void removeTrailingZeros();
+    void loadConfig();
+    bool isNumber(const std::string& token) const;
+    std::string extractOperator(const std::string& token, size_t& opStart) const;
+    
+    // Processing
+    void processLine(const std::string& line);
+    void processStatement(const std::string& statement);
+    void processToken(const std::string& token);
+    void executeOperator(const std::string& op);
+};
+
+#endif // RPN_H
