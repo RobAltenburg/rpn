@@ -10,8 +10,9 @@ class RPNCalculator {
 public:
     RPNCalculator();
     
-    // Main entry point
-    void run();
+    // Main entry points
+    void run();                              // Interactive mode
+    void evaluate(const std::string& expr);  // Non-interactive: evaluate expression and print result
     
     // Stack operations - these need to be public for operators to access
     void pushStack(double value);

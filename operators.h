@@ -5,6 +5,7 @@
 #include <functional>
 #include <map>
 #include <stack>
+#include <vector>
 
 // Forward declaration
 class RPNCalculator;

@@ -118,6 +118,12 @@ int RPNCalculator::getScale() const {
     return scale_;
 }
 
+void RPNCalculator::setScale(int s) {
+    if (s >= 0 && s <= 15) {
+        scale_ = s;
+    }
+}
+
 double RPNCalculator::toRadians(double angle) const {
     if (angleMode_ == AngleMode::DEGREES) {
         return angle * M_PI / 180.0;
@@ -386,8 +392,13 @@ void RPNCalculator::processToken(const std::string& token) {
             printError("Error: Need location on stack");
             return;
         }
-        int location = static_cast<int>(stack_.top());
+        double locDouble = stack_.top();
+        if (locDouble != std::floor(locDouble)) {
+            printError("Error: Memory location must be an integer");
+            return;
+        }
         stack_.pop();
+        int location = static_cast<int>(locDouble);
         double value = recallMemory(location);
         stack_.push(value);
         print(value);
@@ -559,11 +570,7 @@ void RPNCalculator::loadConfig() {
 void RPNCalculator::run() {
     loadConfig();
     
-    std::cout << "RPN Calculator (type 'q' to quit, 'p' to print stack, 'c' to clear)" << std::endl;
-    std::cout << "Operators: + - * / % ^ ! sqrt sin cos tan atan atan2 ln log exp abs neg inv gamma" << std::endl;
-    std::cout << "Stack commands: p(rint), c(clear), d(uplicate), r(everse top 2), copy, pop, sto, rcl" << std::endl;
-    std::cout << "Modes: deg (degrees), rad (radians), grd (gradians)" << std::endl;
-    std::cout << "Settings: scale, fmt (toggle locale formatting)" << std::endl;
+    std::cout << "RPN Calculator (type 'help' or '?' for commands, 'q' to quit)" << std::endl;
     
     std::string line;
     while (true) {
@@ -574,4 +581,14 @@ void RPNCalculator::run() {
         
         processLine(line);
     }
+}
+
+// ============================================================================
+// NON-INTERACTIVE EVALUATION
+// ============================================================================
+void RPNCalculator::evaluate(const std::string& expr) {
+    loadConfig();
+    processLine(expr);
+    // Print final result (top of stack) if not already printed
+    // The result is typically already printed by the operators
 }

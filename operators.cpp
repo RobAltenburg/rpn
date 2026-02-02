@@ -163,6 +163,32 @@ void OperatorRegistry::registerTrigonometric() {
         calc.print(result);
     }, "Tangent"});
     
+    // Arcsine
+    registerOperator({"asin", OperatorType::UNARY, [](RPNCalculator& calc) {
+        double x = calc.popStack();
+        if (x < -1 || x > 1) {
+            calc.printError("Error: asin argument must be in [-1, 1]");
+            calc.pushStack(x);
+            return;
+        }
+        double result = calc.fromRadians(std::asin(x));
+        calc.pushStack(result);
+        calc.print(result);
+    }, "Arcsine"});
+    
+    // Arccosine
+    registerOperator({"acos", OperatorType::UNARY, [](RPNCalculator& calc) {
+        double x = calc.popStack();
+        if (x < -1 || x > 1) {
+            calc.printError("Error: acos argument must be in [-1, 1]");
+            calc.pushStack(x);
+            return;
+        }
+        double result = calc.fromRadians(std::acos(x));
+        calc.pushStack(result);
+        calc.print(result);
+    }, "Arccosine"});
+    
     // Arctangent
     registerOperator({"atan", OperatorType::UNARY, [](RPNCalculator& calc) {
         double x = calc.popStack();
@@ -223,6 +249,40 @@ void OperatorRegistry::registerLogarithmic() {
         calc.pushStack(result);
         calc.print(result);
     }, "Exponential (e^x)"});
+    
+    // Base-2 logarithm
+    registerOperator({"log2", OperatorType::UNARY, [](RPNCalculator& calc) {
+        double x = calc.popStack();
+        if (x <= 0) {
+            calc.printError("Error: Logarithm of non-positive number");
+            calc.pushStack(x);
+            return;
+        }
+        double result = std::log2(x);
+        calc.pushStack(result);
+        calc.print(result);
+    }, "Base-2 logarithm"});
+    
+    // Arbitrary base logarithm: y logb = log_y(x) where x is below y on stack
+    registerOperator({"logb", OperatorType::BINARY, [](RPNCalculator& calc) {
+        double base = calc.popStack();
+        double x = calc.popStack();
+        if (x <= 0 || base <= 0) {
+            calc.printError("Error: Logarithm of non-positive number");
+            calc.pushStack(x);
+            calc.pushStack(base);
+            return;
+        }
+        if (base == 1) {
+            calc.printError("Error: Logarithm base cannot be 1");
+            calc.pushStack(x);
+            calc.pushStack(base);
+            return;
+        }
+        double result = std::log(x) / std::log(base);
+        calc.pushStack(result);
+        calc.print(result);
+    }, "Logarithm with arbitrary base (x base logb)"});
 }
 
 // ============================================================================
@@ -250,8 +310,8 @@ void OperatorRegistry::registerStackOperations() {
         calc.pushStack(val);
     }, "Duplicate top"});
     
-    // Reverse top 2
-    registerOperator({"r", OperatorType::NULLARY, [](RPNCalculator& calc) {
+    // Reverse top 2 / swap
+    auto swapFunc = [](RPNCalculator& calc) {
         if (calc.stackSize() < 2) {
             calc.printError("Error: Need at least 2 elements");
             return;
@@ -260,7 +320,9 @@ void OperatorRegistry::registerStackOperations() {
         double y = calc.popStack();
         calc.pushStack(x);
         calc.pushStack(y);
-    }, "Reverse top 2"});
+    };
+    registerOperator({"r", OperatorType::NULLARY, swapFunc, "Reverse top 2"});
+    registerOperator({"swap", OperatorType::NULLARY, swapFunc, "Swap top 2 (alias for r)"});
     
     // Pop
     registerOperator({"pop", OperatorType::NULLARY, [](RPNCalculator& calc) {
@@ -269,22 +331,74 @@ void OperatorRegistry::registerStackOperations() {
         }
     }, "Pop top value"});
 
-    // Copy to clipboard
+    // Copy to clipboard (cross-platform)
     registerOperator({"copy", OperatorType::NULLARY, [](RPNCalculator& calc) {
         double value = calc.peekStack();
         std::ostringstream oss;
         oss << std::setprecision(calc.getScale()) << value;
         std::string str = oss.str();
 
-        FILE* pipe = popen("pbcopy", "w");
-        if (pipe) {
-            fputs(str.c_str(), pipe);
-            pclose(pipe);
-            std::cout << "Copied: " << str << std::endl;
-        } else {
+        // Try platform-specific clipboard commands
+        const char* commands[] = {
+#ifdef __APPLE__
+            "pbcopy",
+#elif defined(__linux__)
+            "xclip -selection clipboard",
+            "xsel --clipboard --input",
+#elif defined(_WIN32)
+            "clip",
+#endif
+            nullptr
+        };
+        
+        bool copied = false;
+        for (int i = 0; commands[i] != nullptr; ++i) {
+            FILE* pipe = popen(commands[i], "w");
+            if (pipe) {
+                fputs(str.c_str(), pipe);
+                int status = pclose(pipe);
+                if (status == 0) {
+                    std::cout << "Copied: " << str << std::endl;
+                    copied = true;
+                    break;
+                }
+            }
+        }
+        
+        if (!copied) {
             calc.printError("Error: Could not copy to clipboard");
         }
     }, "Copy top to clipboard"});
+    
+    // Sum all stack values
+    registerOperator({"sum", OperatorType::NULLARY, [](RPNCalculator& calc) {
+        if (calc.isStackEmpty()) {
+            calc.pushStack(0);
+            calc.print(0);
+            return;
+        }
+        double total = 0;
+        while (!calc.isStackEmpty()) {
+            total += calc.popStack();
+        }
+        calc.pushStack(total);
+        calc.print(total);
+    }, "Sum all stack values"});
+    
+    // Product of all stack values
+    registerOperator({"prod", OperatorType::NULLARY, [](RPNCalculator& calc) {
+        if (calc.isStackEmpty()) {
+            calc.pushStack(1);
+            calc.print(1);
+            return;
+        }
+        double total = 1;
+        while (!calc.isStackEmpty()) {
+            total *= calc.popStack();
+        }
+        calc.pushStack(total);
+        calc.print(total);
+    }, "Product of all stack values"});
 }
 
 // ============================================================================
@@ -369,6 +483,55 @@ void OperatorRegistry::registerMiscellaneous() {
         calc.print(result);
     }, "Factorial"});
     
+    // Floor
+    registerOperator({"floor", OperatorType::UNARY, [](RPNCalculator& calc) {
+        double x = calc.popStack();
+        double result = std::floor(x);
+        calc.pushStack(result);
+        calc.print(result);
+    }, "Floor (round down)"});
+    
+    // Ceil
+    registerOperator({"ceil", OperatorType::UNARY, [](RPNCalculator& calc) {
+        double x = calc.popStack();
+        double result = std::ceil(x);
+        calc.pushStack(result);
+        calc.print(result);
+    }, "Ceiling (round up)"});
+    
+    // Round
+    registerOperator({"round", OperatorType::UNARY, [](RPNCalculator& calc) {
+        double x = calc.popStack();
+        double result = std::round(x);
+        calc.pushStack(result);
+        calc.print(result);
+    }, "Round to nearest integer"});
+    
+    // Trunc
+    registerOperator({"trunc", OperatorType::UNARY, [](RPNCalculator& calc) {
+        double x = calc.popStack();
+        double result = std::trunc(x);
+        calc.pushStack(result);
+        calc.print(result);
+    }, "Truncate (round toward zero)"});
+    
+    // Constants
+    registerOperator({"pi", OperatorType::NULLARY, [](RPNCalculator& calc) {
+        calc.pushStack(M_PI);
+        calc.print(M_PI);
+    }, "Push π (3.14159...)"});
+    
+    registerOperator({"e", OperatorType::NULLARY, [](RPNCalculator& calc) {
+        calc.pushStack(M_E);
+        calc.print(M_E);
+    }, "Push e (2.71828...)"});
+    
+    registerOperator({"phi", OperatorType::NULLARY, [](RPNCalculator& calc) {
+        double phi = (1.0 + std::sqrt(5.0)) / 2.0;  // Golden ratio
+        calc.pushStack(phi);
+        calc.print(phi);
+    }, "Push φ golden ratio (1.61803...)"});
+    
     // Angle mode commands
     registerOperator({"deg", OperatorType::NULLARY, [](RPNCalculator& calc) {
         calc.setAngleMode("degrees");
@@ -384,4 +547,26 @@ void OperatorRegistry::registerMiscellaneous() {
         calc.setAngleMode("gradians");
         std::cout << "Angle mode: gradians" << std::endl;
     }, "Set gradians mode"});
+    
+    // Help command
+    registerOperator({"help", OperatorType::NULLARY, [](RPNCalculator&) {
+        OperatorRegistry& reg = OperatorRegistry::instance();
+        std::vector<std::string> names = reg.getAllNames();
+        std::sort(names.begin(), names.end());
+        
+        std::cout << "Available operators:" << std::endl;
+        for (const auto& name : names) {
+            const Operator* op = reg.getOperator(name);
+            if (op) {
+                std::cout << "  " << name << " - " << op->description << std::endl;
+            }
+        }
+        std::cout << "\nSpecial commands: sto, rcl, scale, fmt, q/quit/exit" << std::endl;
+    }, "Show this help"});
+    
+    registerOperator({"?", OperatorType::NULLARY, [](RPNCalculator& calc) {
+        // Alias for help
+        const Operator* helpOp = OperatorRegistry::instance().getOperator("help");
+        if (helpOp) helpOp->execute(calc);
+    }, "Show help (alias for help)"});
 }

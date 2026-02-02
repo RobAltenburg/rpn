@@ -2,14 +2,30 @@
 
 A reverse Polish notation (RPN) calculator with support for multiple angle modes and comprehensive error handling.
 
+## Usage
+
+```bash
+./rpn                  # Interactive mode
+./rpn -e "2 3 +"       # Evaluate expression and exit
+./rpn "2 3 +"          # Same as above (shorthand)
+./rpn -h               # Show help
+```
+
 ## Features
 
-- **Operators**: +, -, *, /, %, ^, sqrt, sin, cos, tan, atan, atan2, ln, log, exp, abs, neg, inv, gamma
-- **Stack Commands**: p(rint), c(clear), d(uplicate), r(everse top 2), pop, sto, rcl, Enter (duplicate top or push 0)
+- **Arithmetic**: +, -, *, /, %, ^
+- **Trigonometric**: sin, cos, tan, asin, acos, atan, atan2
+- **Logarithmic**: ln, log, log2, logb (arbitrary base), exp
+- **Rounding**: floor, ceil, round, trunc
+- **Other Math**: sqrt, abs, neg, inv, gamma, !
+- **Constants**: pi, e, phi (golden ratio)
+- **Stack Commands**: p(rint), c(clear), d(uplicate), r/swap (reverse top 2), pop, sum, prod, copy
+- **Memory**: sto, rcl
 - **Angle Modes**: deg (degrees), rad (radians), grd (gradians)
-- **Settings**: scale (set output precision)
+- **Settings**: scale (set output precision), fmt (toggle localized number formats)
+- **Help**: help or ? (list all operators)
 - **Empty Stack Handling**: Operations on empty stack automatically use 0 for missing operands
-- **Trailing Zeros Removal**: Zeros at the bottom of the stack are automatically removed (since popping from empty returns 0)
+- **Trailing Zeros Removal**: Zeros at the bottom of the stack are automatically removed
 - **Memory Storage**: Unlimited numbered memory locations via `sto` and `rcl` commands
 - **Configuration File**: `~/.rpn` can preset memory values, angle mode, and precision
 
