@@ -562,6 +562,11 @@ void OperatorRegistry::registerMiscellaneous() {
             }
         }
         std::cout << "\nSpecial commands: sto, rcl, scale, fmt, q/quit/exit" << std::endl;
+        std::cout << "\nMacros:" << std::endl;
+        std::cout << "  x[  - Start recording macro to slot x (default 0)" << std::endl;
+        std::cout << "  ]   - Stop recording" << std::endl;
+        std::cout << "  x@  - Play macro from slot x" << std::endl;
+        std::cout << "\nConfig: loads .rpn from current dir or ~/.rpn" << std::endl;
     }, "Show this help"});
     
     registerOperator({"?", OperatorType::NULLARY, [](RPNCalculator& calc) {

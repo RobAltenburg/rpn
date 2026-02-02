@@ -49,8 +49,7 @@ private:
     AngleMode angleMode_;
     int scale_;
     
-    // Macro recording
-    // TODO: Add support for loading/saving macros from ~/.rpn config file
+    // Macro recording (can be loaded from .rpn config file)
     std::map<int, std::vector<std::string>> macros_;  // slot -> recorded tokens
     int recordingSlot_;           // -1 if not recording
     std::vector<std::string> recordingBuffer_;

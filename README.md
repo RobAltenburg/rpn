@@ -1,6 +1,6 @@
 # RPN Calculator
 
-A reverse Polish notation (RPN) calculator with support for multiple angle modes and comprehensive error handling.
+A reverse Polish notation (RPN) calculator with memory and macro support
 
 ## Usage
 
@@ -88,7 +88,7 @@ The prompt shows `rec:N>` while recording. Quitting during recording discards th
 
 ## Configuration File
 
-Create a `~/.rpn` file to set defaults. Format:
+The calculator loads configuration from `.rpn` in the current directory, or `~/.rpn` if no local config exists.
 
 ```
 # Comments start with #
@@ -103,4 +103,9 @@ scale 10
 mem 0 3.14159265359   # π
 mem 1 2.71828182846   # e
 mem 10 42             # Answer to everything
+
+# Preset macros (slot followed by tokens)
+macro 0 2 *           # Double: multiply by 2
+macro 1 d *           # Square: duplicate and multiply
+macro 2 1 r /         # Inverse: 1/x using reverse and divide
 ```

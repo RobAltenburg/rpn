@@ -594,12 +594,17 @@ void RPNCalculator::processLine(const std::string& line) {
 // CONFIGURATION
 // ============================================================================
 void RPNCalculator::loadConfig() {
-    const char* home = getenv("HOME");
-    if (!home) return;
-    
-    std::string configPath = std::string(home) + "/.rpn";
+    // Try local .rpn first, then fall back to ~/.rpn
+    std::string configPath = ".rpn";
     std::ifstream configFile(configPath);
-    if (!configFile.is_open()) return;
+    
+    if (!configFile.is_open()) {
+        const char* home = getenv("HOME");
+        if (!home) return;
+        configPath = std::string(home) + "/.rpn";
+        configFile.open(configPath);
+        if (!configFile.is_open()) return;
+    }
     
     std::string line;
     while (std::getline(configFile, line)) {
@@ -633,6 +638,19 @@ void RPNCalculator::loadConfig() {
                     localeFormatting_ = false;
                 } else if (value == "on" || value == "1" || value == "true") {
                     localeFormatting_ = true;
+                }
+            }
+        } else if (cmd == "macro") {
+            // macro <slot> <tokens...>
+            int slot;
+            if (iss >> slot) {
+                std::vector<std::string> tokens;
+                std::string token;
+                while (iss >> token) {
+                    tokens.push_back(token);
+                }
+                if (!tokens.empty()) {
+                    macros_[slot] = tokens;
                 }
             }
         }
