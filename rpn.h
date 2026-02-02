@@ -51,9 +51,19 @@ private:
     // Helper methods
     void removeTrailingZeros();
     void loadConfig();
+    void detectLocaleSeparators();
     bool isNumber(const std::string& token) const;
+    std::string normalizeNumber(const std::string& token) const;
     std::string extractOperator(const std::string& token, size_t& opStart) const;
-    
+
+    // Locale settings
+    char decimalSeparator_;
+    char thousandsSeparator_;
+    bool localeFormatting_;  // Format output with locale separators (on by default)
+
+    // Formatting helper
+    std::string formatNumber(double value) const;
+
     // Processing
     void processLine(const std::string& line);
     void processStatement(const std::string& statement);

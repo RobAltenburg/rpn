@@ -8,10 +8,13 @@
 #include <vector>
 #include <algorithm>
 #include <cstdlib>
+#include <locale>
+#include <clocale>
 
 // Constructor
-RPNCalculator::RPNCalculator() 
-    : angleMode_(AngleMode::RADIANS), scale_(15) {
+RPNCalculator::RPNCalculator()
+    : angleMode_(AngleMode::RADIANS), scale_(15), decimalSeparator_('.'), thousandsSeparator_(','), localeFormatting_(true) {
+    detectLocaleSeparators();
 }
 
 // ============================================================================
@@ -56,18 +59,18 @@ void RPNCalculator::printStack() const {
         std::cout << "0" << std::endl;
         return;
     }
-    
+
     std::stack<double> temp = stack_;
     std::stack<double> reverse;
-    
+
     while (!temp.empty()) {
         reverse.push(temp.top());
         temp.pop();
     }
-    
+
     int level = 0;
     while (!reverse.empty()) {
-        std::cout << level++ << ": " << std::setprecision(scale_) << reverse.top() << std::endl;
+        std::cout << level++ << ": " << formatNumber(reverse.top()) << std::endl;
         reverse.pop();
     }
 }
@@ -151,8 +154,64 @@ double RPNCalculator::recallMemory(int location) const {
 // ============================================================================
 // OUTPUT OPERATIONS
 // ============================================================================
+std::string RPNCalculator::formatNumber(double value) const {
+    std::ostringstream oss;
+    oss << std::setprecision(scale_) << value;
+    std::string str = oss.str();
+
+    if (!localeFormatting_) {
+        return str;
+    }
+
+    // Find the decimal point and exponent positions
+    size_t decimalPos = str.find('.');
+    size_t expPos = str.find('e');
+    if (expPos == std::string::npos) expPos = str.find('E');
+
+    // Determine the end of the integer part
+    size_t intEnd = (decimalPos != std::string::npos) ? decimalPos :
+                    (expPos != std::string::npos) ? expPos : str.length();
+
+    // Find where digits start (after optional sign)
+    size_t intStart = 0;
+    if (!str.empty() && (str[0] == '-' || str[0] == '+')) {
+        intStart = 1;
+    }
+
+    // Build the result with thousands separators in the integer part
+    std::string result;
+
+    // Add sign if present
+    if (intStart > 0) {
+        result += str[0];
+    }
+
+    // Add integer part with thousands separators
+    for (size_t i = intStart; i < intEnd; ++i) {
+        result += str[i];
+        size_t remaining = intEnd - i - 1;
+        if (remaining > 0 && remaining % 3 == 0) {
+            result += thousandsSeparator_;
+        }
+    }
+
+    // Add decimal part with locale decimal separator
+    if (decimalPos != std::string::npos) {
+        result += decimalSeparator_;
+        size_t fracEnd = (expPos != std::string::npos) ? expPos : str.length();
+        result += str.substr(decimalPos + 1, fracEnd - decimalPos - 1);
+    }
+
+    // Add exponent part unchanged
+    if (expPos != std::string::npos) {
+        result += str.substr(expPos);
+    }
+
+    return result;
+}
+
 void RPNCalculator::print(double value) const {
-    std::cout << std::setprecision(scale_) << value << std::endl;
+    std::cout << formatNumber(value) << std::endl;
 }
 
 void RPNCalculator::printError(const std::string& message) const {
@@ -160,37 +219,109 @@ void RPNCalculator::printError(const std::string& message) const {
 }
 
 // ============================================================================
+// LOCALE DETECTION
+// ============================================================================
+void RPNCalculator::detectLocaleSeparators() {
+    // Set locale from environment
+    std::setlocale(LC_NUMERIC, "");
+
+    // Use localeconv to get the locale's numeric formatting
+    struct lconv* lc = std::localeconv();
+
+    if (lc->decimal_point && lc->decimal_point[0]) {
+        decimalSeparator_ = lc->decimal_point[0];
+    }
+
+    if (lc->thousands_sep && lc->thousands_sep[0]) {
+        thousandsSeparator_ = lc->thousands_sep[0];
+    } else {
+        // Default thousands separator based on decimal separator
+        thousandsSeparator_ = (decimalSeparator_ == ',') ? '.' : ',';
+    }
+
+    // Reset to C locale for stod to work correctly
+    std::setlocale(LC_NUMERIC, "C");
+}
+
+// ============================================================================
 // NUMBER VALIDATION
 // ============================================================================
 bool RPNCalculator::isNumber(const std::string& token) const {
     if (token.empty()) return false;
-    
+
     size_t start = 0;
     if (token[0] == '-' || token[0] == '+') {
         if (token.length() == 1) return false;
         start = 1;
     }
-    
+
     bool hasDecimal = false;
     bool hasExponent = false;
-    
+    int digitsSinceThousands = 0;
+    bool hasThousandsSep = false;
+
     for (size_t i = start; i < token.length(); i++) {
-        if (token[i] == '.') {
+        char c = token[i];
+
+        if (c == decimalSeparator_) {
             if (hasDecimal || hasExponent) return false;
             hasDecimal = true;
-        } else if (token[i] == 'e' || token[i] == 'E') {
+            digitsSinceThousands = 0;  // Reset for decimal portion
+        } else if (c == thousandsSeparator_ && !hasDecimal && !hasExponent) {
+            // Thousands separator only valid before decimal point and exponent
+            // Must have 1-3 digits before first thousands separator
+            // Must have exactly 3 digits between subsequent separators
+            if (hasThousandsSep && digitsSinceThousands != 3) return false;
+            if (!hasThousandsSep && (digitsSinceThousands < 1 || digitsSinceThousands > 3)) return false;
+            hasThousandsSep = true;
+            digitsSinceThousands = 0;
+        } else if (c == 'e' || c == 'E') {
             if (hasExponent) return false;
             if (i == start) return false;
+            // If we had thousands separators, last group must be 3 digits (unless we hit decimal)
+            if (hasThousandsSep && !hasDecimal && digitsSinceThousands != 3) return false;
             hasExponent = true;
+            hasThousandsSep = false;  // Reset for exponent
             if (i + 1 < token.length() && (token[i + 1] == '+' || token[i + 1] == '-')) {
                 i++;
                 if (i + 1 >= token.length()) return false;
             }
-        } else if (!isdigit(token[i])) {
+        } else if (isdigit(c)) {
+            digitsSinceThousands++;
+        } else {
             return false;
         }
     }
+
+    // Final validation: if thousands separators were used, last group must be 3 digits
+    // (unless a decimal point was encountered)
+    if (hasThousandsSep && !hasDecimal && !hasExponent && digitsSinceThousands != 3) {
+        return false;
+    }
+
     return true;
+}
+
+// ============================================================================
+// NUMBER NORMALIZATION
+// ============================================================================
+std::string RPNCalculator::normalizeNumber(const std::string& token) const {
+    std::string result;
+    result.reserve(token.length());
+
+    for (char c : token) {
+        if (c == thousandsSeparator_) {
+            // Skip thousands separators
+            continue;
+        } else if (c == decimalSeparator_) {
+            // Convert locale decimal to standard decimal
+            result += '.';
+        } else {
+            result += c;
+        }
+    }
+
+    return result;
 }
 
 // ============================================================================
@@ -280,6 +411,13 @@ void RPNCalculator::processToken(const std::string& token) {
         }
         return;
     }
+
+    // Handle fmt command - toggle locale formatting
+    if (token == "fmt") {
+        localeFormatting_ = !localeFormatting_;
+        std::cout << "Locale formatting " << (localeFormatting_ ? "on" : "off") << std::endl;
+        return;
+    }
     
     // Check if token ends with an operator (e.g., "1+", "5*", "45tan")
     if (token.length() > 1) {
@@ -289,9 +427,9 @@ void RPNCalculator::processToken(const std::string& token) {
         if (!op.empty() && opStart > 0) {
             std::string numPart = token.substr(0, opStart);
             if (isNumber(numPart)) {
-                double num = std::stod(numPart);
+                double num = std::stod(normalizeNumber(numPart));
                 stack_.push(num);
-                std::cout << std::setprecision(scale_) << num << std::endl;
+                std::cout << formatNumber(num) << std::endl;
                 
                 // Execute operator via registry
                 const Operator* opObj = registry.getOperator(op);
@@ -307,9 +445,9 @@ void RPNCalculator::processToken(const std::string& token) {
     
     // Check if it's a number
     if (isNumber(token)) {
-        double num = std::stod(token);
+        double num = std::stod(normalizeNumber(token));
         stack_.push(num);
-        std::cout << std::setprecision(scale_) << num << std::endl;
+        std::cout << formatNumber(num) << std::endl;
         return;
     }
     
@@ -341,7 +479,7 @@ void RPNCalculator::processLine(const std::string& line) {
         } else {
             double top = stack_.top();
             stack_.push(top);
-            std::cout << std::setprecision(scale_) << top << std::endl;
+            std::cout << formatNumber(top) << std::endl;
         }
         removeTrailingZeros();
         return;
@@ -401,6 +539,15 @@ void RPNCalculator::loadConfig() {
             if (iss >> loc >> val) {
                 memory_[loc] = val;
             }
+        } else if (cmd == "fmt") {
+            std::string value;
+            if (iss >> value) {
+                if (value == "off" || value == "0" || value == "false") {
+                    localeFormatting_ = false;
+                } else if (value == "on" || value == "1" || value == "true") {
+                    localeFormatting_ = true;
+                }
+            }
         }
     }
     configFile.close();
@@ -416,7 +563,7 @@ void RPNCalculator::run() {
     std::cout << "Operators: + - * / % ^ ! sqrt sin cos tan atan atan2 ln log exp abs neg inv gamma" << std::endl;
     std::cout << "Stack commands: p(rint), c(clear), d(uplicate), r(everse top 2), copy, pop, sto, rcl" << std::endl;
     std::cout << "Modes: deg (degrees), rad (radians), grd (gradians)" << std::endl;
-    std::cout << "Settings: scale (set precision from stack, or show current if stack empty)" << std::endl;
+    std::cout << "Settings: scale, fmt (toggle locale formatting)" << std::endl;
     
     std::string line;
     while (true) {
