@@ -21,7 +21,7 @@ A reverse Polish notation (RPN) calculator with support for multiple angle modes
 - **Constants**: pi, e, phi (golden ratio)
 - **Stack Commands**: p(rint), c(clear), d(uplicate), r/swap (reverse top 2), pop, sum, prod, copy
 - **Memory**: sto, rcl
-- **Macros**: [ (start recording), ] (stop recording), @ (playback)
+- **Macros**: x[ (start recording), ] (stop recording), x@ (playback) where x is the top of the stack
 - **Angle Modes**: deg (degrees), rad (radians), grd (gradians)
 - **Settings**: scale (set output precision), fmt (toggle localized number formats)
 - **Help**: help or ? (list all operators)

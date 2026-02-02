@@ -342,6 +342,9 @@ std::string RPNCalculator::extractOperator(const std::string& token, size_t& opS
     // Add special commands that aren't in the operator registry
     ops.push_back("sto");
     ops.push_back("rcl");
+    ops.push_back("[");
+    ops.push_back("]");
+    ops.push_back("@");
     
     // Sort by length (longest first) to match longest operator first
     std::sort(ops.begin(), ops.end(), [](const std::string& a, const std::string& b) {
@@ -428,6 +431,7 @@ void RPNCalculator::processToken(const std::string& token) {
         // Play back the macro
         isPlayingMacro_ = true;
         for (const auto& t : it->second) {
+            std::cout << "  @" << slot << ": " << t << std::endl;
             processToken(t);
         }
         isPlayingMacro_ = false;
@@ -518,7 +522,7 @@ void RPNCalculator::processToken(const std::string& token) {
                 const Operator* opObj = registry.getOperator(op);
                 if (opObj) {
                     opObj->execute(*this);
-                } else if (op == "sto" || op == "rcl") {
+                } else if (op == "sto" || op == "rcl" || op == "[" || op == "]" || op == "@") {
                     processToken(op);  // Handle special commands
                 }
                 return;
