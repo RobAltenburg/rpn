@@ -21,6 +21,7 @@ A reverse Polish notation (RPN) calculator with support for multiple angle modes
 - **Constants**: pi, e, phi (golden ratio)
 - **Stack Commands**: p(rint), c(clear), d(uplicate), r/swap (reverse top 2), pop, sum, prod, copy
 - **Memory**: sto, rcl
+- **Macros**: [ (start recording), ] (stop recording), @ (playback)
 - **Angle Modes**: deg (degrees), rad (radians), grd (gradians)
 - **Settings**: scale (set output precision), fmt (toggle localized number formats)
 - **Help**: help or ? (list all operators)
@@ -48,6 +49,42 @@ Retrieves a value from memory and pushes it onto the stack.
 ```
 
 Recalling from an uninitialized location returns 0.
+
+## Macros
+
+Record sequences of commands for reuse.
+
+### Recording
+Start recording with `[`, optionally specifying a slot number (default 0):
+
+```
+[             # Start recording to slot 0
+1 [           # Start recording to slot 1
+```
+
+All commands entered while recording are captured. End recording with `]`.
+
+### Playback
+Play a macro with `@`, specifying the slot number:
+
+```
+5 0 @         # Play macro 0 with 5 on stack
+10 1 @        # Play macro 1 with 10 on stack
+```
+
+### Example
+
+```
+> [ 2 * ]              # Record "double" macro in slot 0
+Recording macro 0...
+Recorded macro 0 (2 commands)
+> 5 0 @                # Play it: 5 * 2 = 10
+10
+> 7 0 @                # Play again: 7 * 2 = 14
+14
+```
+
+The prompt shows `rec:N>` while recording. Quitting during recording discards the macro.
 
 ## Configuration File
 

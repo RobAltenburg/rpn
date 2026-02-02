@@ -13,7 +13,8 @@
 
 // Constructor
 RPNCalculator::RPNCalculator()
-    : angleMode_(AngleMode::RADIANS), scale_(15), decimalSeparator_('.'), thousandsSeparator_(','), localeFormatting_(true) {
+    : angleMode_(AngleMode::RADIANS), scale_(15), recordingSlot_(-1), isPlayingMacro_(false),
+      decimalSeparator_('.'), thousandsSeparator_(','), localeFormatting_(true) {
     detectLocaleSeparators();
 }
 
@@ -367,6 +368,77 @@ void RPNCalculator::processToken(const std::string& token) {
     
     OperatorRegistry& registry = OperatorRegistry::instance();
     
+    // Handle start recording: "[" with optional slot number on stack (default 0)
+    if (token == "[") {
+        if (isRecording()) {
+            printError("Error: Already recording macro " + std::to_string(recordingSlot_));
+            return;
+        }
+        int slot = 0;
+        if (!stack_.empty()) {
+            double slotDouble = stack_.top();
+            if (slotDouble != std::floor(slotDouble)) {
+                printError("Error: Macro slot must be an integer");
+                return;
+            }
+            stack_.pop();
+            slot = static_cast<int>(slotDouble);
+        }
+        recordingSlot_ = slot;
+        recordingBuffer_.clear();
+        std::cout << "Recording macro " << recordingSlot_ << "..." << std::endl;
+        return;
+    }
+    
+    // Handle stop recording: "]"
+    if (token == "]") {
+        if (!isRecording()) {
+            printError("Error: Not recording");
+            return;
+        }
+        macros_[recordingSlot_] = recordingBuffer_;
+        std::cout << "Recorded macro " << recordingSlot_ 
+                  << " (" << recordingBuffer_.size() << " commands)" << std::endl;
+        recordingSlot_ = -1;
+        recordingBuffer_.clear();
+        return;
+    }
+    
+    // Handle macro playback: "@" with optional slot number on stack (default 0)
+    if (token == "@") {
+        if (isPlayingMacro_) {
+            printError("Error: Nested macro playback not supported");
+            return;
+        }
+        int slot = 0;
+        if (!stack_.empty()) {
+            double slotDouble = stack_.top();
+            if (slotDouble != std::floor(slotDouble)) {
+                printError("Error: Macro slot must be an integer");
+                return;
+            }
+            stack_.pop();
+            slot = static_cast<int>(slotDouble);
+        }
+        auto it = macros_.find(slot);
+        if (it == macros_.end()) {
+            printError("Error: No macro in slot " + std::to_string(slot));
+            return;
+        }
+        // Play back the macro
+        isPlayingMacro_ = true;
+        for (const auto& t : it->second) {
+            processToken(t);
+        }
+        isPlayingMacro_ = false;
+        return;
+    }
+    
+    // If recording, store token (but don't store [ or ])
+    if (isRecording()) {
+        recordingBuffer_.push_back(token);
+    }
+    
     // Handle sto command
     if (token == "sto") {
         if (stack_.size() < 2) {
@@ -574,10 +646,24 @@ void RPNCalculator::run() {
     
     std::string line;
     while (true) {
-        std::cout << "> ";
+        // Show recording indicator in prompt
+        if (isRecording()) {
+            std::cout << "rec:" << recordingSlot_ << "> ";
+        } else {
+            std::cout << "> ";
+        }
+        
         if (!std::getline(std::cin, line)) break;
         
-        if (line == "q" || line == "quit" || line == "exit") break;
+        if (line == "q" || line == "quit" || line == "exit") {
+            // Discard any in-progress recording
+            if (isRecording()) {
+                std::cout << "Recording discarded" << std::endl;
+                recordingSlot_ = -1;
+                recordingBuffer_.clear();
+            }
+            break;
+        }
         
         processLine(line);
     }
