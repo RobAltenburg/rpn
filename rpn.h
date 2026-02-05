@@ -23,9 +23,18 @@ public:
     void clearStack();
     void printStack() const;
     
-    // Memory operations
+    // Memory operations (numeric slots - deprecated, use named variables)
     void storeMemory(int location, double value);
     double recallMemory(int location) const;
+    
+    // Named variables
+    bool storeVariable(const std::string& name, double value);  // Returns false if name shadows operator
+    bool hasVariable(const std::string& name) const;
+    double recallVariable(const std::string& name) const;
+    
+    // Named macros
+    bool hasNamedMacro(const std::string& name) const;
+    const std::vector<std::string>* getNamedMacro(const std::string& name) const;
     
     // Settings
     void setAngleMode(const std::string& mode);
@@ -50,11 +59,16 @@ private:
     int scale_;
     
     // Macro recording (can be loaded from .rpn config file)
-    std::map<int, std::vector<std::string>> macros_;  // slot -> recorded tokens
-    int recordingSlot_;           // -1 if not recording
+    std::map<int, std::vector<std::string>> macros_;  // slot -> recorded tokens (deprecated)
+    std::map<std::string, std::vector<std::string>> namedMacros_;  // name -> recorded tokens
+    int recordingSlot_;           // -1 if not recording (numeric)
+    std::string recordingName_;   // empty if not recording (named)
     std::vector<std::string> recordingBuffer_;
-    bool isRecording() const { return recordingSlot_ >= 0; }
+    bool isRecording() const { return recordingSlot_ >= 0 || !recordingName_.empty(); }
     bool isPlayingMacro_;         // Prevent nested macro playback
+    
+    // Named variables
+    std::map<std::string, double> namedVariables_;
     
     // Helper methods
     void removeTrailingZeros();

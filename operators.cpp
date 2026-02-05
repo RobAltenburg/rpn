@@ -37,11 +37,49 @@ std::vector<std::string> OperatorRegistry::getAllNames() const {
     return names;
 }
 
+std::vector<std::string> OperatorRegistry::getNamesByCategory(OperatorCategory category) const {
+    std::vector<std::string> names;
+    for (const auto& pair : operators_) {
+        if (pair.second.category == category) {
+            names.push_back(pair.first);
+        }
+    }
+    return names;
+}
+
+std::string OperatorRegistry::categoryName(OperatorCategory category) {
+    switch (category) {
+        case OperatorCategory::ARITHMETIC: return "Arithmetic";
+        case OperatorCategory::TRIGONOMETRIC: return "Trigonometric";
+        case OperatorCategory::HYPERBOLIC: return "Hyperbolic";
+        case OperatorCategory::LOGARITHMIC: return "Logarithmic";
+        case OperatorCategory::STACK: return "Stack";
+        case OperatorCategory::CONVERSION: return "Unit Conversion";
+        case OperatorCategory::MISCELLANEOUS: return "Miscellaneous";
+    }
+    return "Unknown";
+}
+
+const std::vector<OperatorCategory>& OperatorRegistry::allCategories() {
+    static std::vector<OperatorCategory> categories = {
+        OperatorCategory::ARITHMETIC,
+        OperatorCategory::TRIGONOMETRIC,
+        OperatorCategory::HYPERBOLIC,
+        OperatorCategory::LOGARITHMIC,
+        OperatorCategory::STACK,
+        OperatorCategory::CONVERSION,
+        OperatorCategory::MISCELLANEOUS
+    };
+    return categories;
+}
+
 void OperatorRegistry::initializeOperators() {
     registerArithmetic();
     registerTrigonometric();
+    registerHyperbolic();
     registerLogarithmic();
     registerStackOperations();
+    registerUnitConversions();
     registerMiscellaneous();
 }
 
@@ -50,7 +88,7 @@ void OperatorRegistry::initializeOperators() {
 // ============================================================================
 void OperatorRegistry::registerArithmetic() {
     // Addition
-    registerOperator({"+", OperatorType::BINARY, [](RPNCalculator& calc) {
+    registerOperator({"+", OperatorType::BINARY, OperatorCategory::ARITHMETIC, [](RPNCalculator& calc) {
         double x = calc.popStack();
         double y = calc.popStack();
         double result = y + x;
@@ -59,7 +97,7 @@ void OperatorRegistry::registerArithmetic() {
     }, "Addition"});
     
     // Subtraction
-    registerOperator({"-", OperatorType::BINARY, [](RPNCalculator& calc) {
+    registerOperator({"-", OperatorType::BINARY, OperatorCategory::ARITHMETIC, [](RPNCalculator& calc) {
         double x = calc.popStack();
         double y = calc.popStack();
         double result = y - x;
@@ -68,7 +106,7 @@ void OperatorRegistry::registerArithmetic() {
     }, "Subtraction"});
     
     // Multiplication
-    registerOperator({"*", OperatorType::BINARY, [](RPNCalculator& calc) {
+    registerOperator({"*", OperatorType::BINARY, OperatorCategory::ARITHMETIC, [](RPNCalculator& calc) {
         double x = calc.popStack();
         double y = calc.popStack();
         double result = y * x;
@@ -77,7 +115,7 @@ void OperatorRegistry::registerArithmetic() {
     }, "Multiplication"});
     
     // Division
-    registerOperator({"/", OperatorType::BINARY, [](RPNCalculator& calc) {
+    registerOperator({"/", OperatorType::BINARY, OperatorCategory::ARITHMETIC, [](RPNCalculator& calc) {
         double x = calc.popStack();
         double y = calc.popStack();
         if (x == 0) {
@@ -92,7 +130,7 @@ void OperatorRegistry::registerArithmetic() {
     }, "Division"});
     
     // Modulo
-    registerOperator({"%", OperatorType::BINARY, [](RPNCalculator& calc) {
+    registerOperator({"%", OperatorType::BINARY, OperatorCategory::ARITHMETIC, [](RPNCalculator& calc) {
         double x = calc.popStack();
         double y = calc.popStack();
         if (x == 0) {
@@ -107,7 +145,7 @@ void OperatorRegistry::registerArithmetic() {
     }, "Modulo"});
     
     // Power
-    registerOperator({"^", OperatorType::BINARY, [](RPNCalculator& calc) {
+    registerOperator({"^", OperatorType::BINARY, OperatorCategory::ARITHMETIC, [](RPNCalculator& calc) {
         double x = calc.popStack();
         double y = calc.popStack();
         double result = std::pow(y, x);
@@ -133,7 +171,7 @@ void OperatorRegistry::registerArithmetic() {
 // ============================================================================
 void OperatorRegistry::registerTrigonometric() {
     // Sine
-    registerOperator({"sin", OperatorType::UNARY, [](RPNCalculator& calc) {
+    registerOperator({"sin", OperatorType::UNARY, OperatorCategory::TRIGONOMETRIC, [](RPNCalculator& calc) {
         double x = calc.popStack();
         double result = std::sin(calc.toRadians(x));
         calc.pushStack(result);
@@ -141,7 +179,7 @@ void OperatorRegistry::registerTrigonometric() {
     }, "Sine"});
     
     // Cosine
-    registerOperator({"cos", OperatorType::UNARY, [](RPNCalculator& calc) {
+    registerOperator({"cos", OperatorType::UNARY, OperatorCategory::TRIGONOMETRIC, [](RPNCalculator& calc) {
         double x = calc.popStack();
         double result = std::cos(calc.toRadians(x));
         calc.pushStack(result);
@@ -149,7 +187,7 @@ void OperatorRegistry::registerTrigonometric() {
     }, "Cosine"});
     
     // Tangent
-    registerOperator({"tan", OperatorType::UNARY, [](RPNCalculator& calc) {
+    registerOperator({"tan", OperatorType::UNARY, OperatorCategory::TRIGONOMETRIC, [](RPNCalculator& calc) {
         double x = calc.popStack();
         double radians = calc.toRadians(x);
         double cosVal = std::cos(radians);
@@ -164,7 +202,7 @@ void OperatorRegistry::registerTrigonometric() {
     }, "Tangent"});
     
     // Arcsine
-    registerOperator({"asin", OperatorType::UNARY, [](RPNCalculator& calc) {
+    registerOperator({"asin", OperatorType::UNARY, OperatorCategory::TRIGONOMETRIC, [](RPNCalculator& calc) {
         double x = calc.popStack();
         if (x < -1 || x > 1) {
             calc.printError("Error: asin argument must be in [-1, 1]");
@@ -177,7 +215,7 @@ void OperatorRegistry::registerTrigonometric() {
     }, "Arcsine"});
     
     // Arccosine
-    registerOperator({"acos", OperatorType::UNARY, [](RPNCalculator& calc) {
+    registerOperator({"acos", OperatorType::UNARY, OperatorCategory::TRIGONOMETRIC, [](RPNCalculator& calc) {
         double x = calc.popStack();
         if (x < -1 || x > 1) {
             calc.printError("Error: acos argument must be in [-1, 1]");
@@ -190,7 +228,7 @@ void OperatorRegistry::registerTrigonometric() {
     }, "Arccosine"});
     
     // Arctangent
-    registerOperator({"atan", OperatorType::UNARY, [](RPNCalculator& calc) {
+    registerOperator({"atan", OperatorType::UNARY, OperatorCategory::TRIGONOMETRIC, [](RPNCalculator& calc) {
         double x = calc.popStack();
         double result = calc.fromRadians(std::atan(x));
         calc.pushStack(result);
@@ -198,7 +236,7 @@ void OperatorRegistry::registerTrigonometric() {
     }, "Arctangent"});
     
     // Arctangent2
-    registerOperator({"atan2", OperatorType::BINARY, [](RPNCalculator& calc) {
+    registerOperator({"atan2", OperatorType::BINARY, OperatorCategory::TRIGONOMETRIC, [](RPNCalculator& calc) {
         double x = calc.popStack();
         double y = calc.popStack();
         double result = calc.fromRadians(std::atan2(y, x));
@@ -208,11 +246,74 @@ void OperatorRegistry::registerTrigonometric() {
 }
 
 // ============================================================================
+// HYPERBOLIC OPERATORS
+// ============================================================================
+void OperatorRegistry::registerHyperbolic() {
+    // Hyperbolic sine
+    registerOperator({"sinh", OperatorType::UNARY, OperatorCategory::HYPERBOLIC, [](RPNCalculator& calc) {
+        double x = calc.popStack();
+        double result = std::sinh(x);
+        calc.pushStack(result);
+        calc.print(result);
+    }, "Hyperbolic sine"});
+    
+    // Hyperbolic cosine
+    registerOperator({"cosh", OperatorType::UNARY, OperatorCategory::HYPERBOLIC, [](RPNCalculator& calc) {
+        double x = calc.popStack();
+        double result = std::cosh(x);
+        calc.pushStack(result);
+        calc.print(result);
+    }, "Hyperbolic cosine"});
+    
+    // Hyperbolic tangent
+    registerOperator({"tanh", OperatorType::UNARY, OperatorCategory::HYPERBOLIC, [](RPNCalculator& calc) {
+        double x = calc.popStack();
+        double result = std::tanh(x);
+        calc.pushStack(result);
+        calc.print(result);
+    }, "Hyperbolic tangent"});
+    
+    // Inverse hyperbolic sine
+    registerOperator({"asinh", OperatorType::UNARY, OperatorCategory::HYPERBOLIC, [](RPNCalculator& calc) {
+        double x = calc.popStack();
+        double result = std::asinh(x);
+        calc.pushStack(result);
+        calc.print(result);
+    }, "Inverse hyperbolic sine"});
+    
+    // Inverse hyperbolic cosine
+    registerOperator({"acosh", OperatorType::UNARY, OperatorCategory::HYPERBOLIC, [](RPNCalculator& calc) {
+        double x = calc.popStack();
+        if (x < 1) {
+            calc.printError("Error: acosh argument must be >= 1");
+            calc.pushStack(x);
+            return;
+        }
+        double result = std::acosh(x);
+        calc.pushStack(result);
+        calc.print(result);
+    }, "Inverse hyperbolic cosine"});
+    
+    // Inverse hyperbolic tangent
+    registerOperator({"atanh", OperatorType::UNARY, OperatorCategory::HYPERBOLIC, [](RPNCalculator& calc) {
+        double x = calc.popStack();
+        if (x <= -1 || x >= 1) {
+            calc.printError("Error: atanh argument must be in (-1, 1)");
+            calc.pushStack(x);
+            return;
+        }
+        double result = std::atanh(x);
+        calc.pushStack(result);
+        calc.print(result);
+    }, "Inverse hyperbolic tangent"});
+}
+
+// ============================================================================
 // LOGARITHMIC/EXPONENTIAL OPERATORS
 // ============================================================================
 void OperatorRegistry::registerLogarithmic() {
     // Natural logarithm
-    registerOperator({"ln", OperatorType::UNARY, [](RPNCalculator& calc) {
+    registerOperator({"ln", OperatorType::UNARY, OperatorCategory::LOGARITHMIC, [](RPNCalculator& calc) {
         double x = calc.popStack();
         if (x <= 0) {
             calc.printError("Error: Logarithm of non-positive number");
@@ -225,7 +326,7 @@ void OperatorRegistry::registerLogarithmic() {
     }, "Natural logarithm"});
     
     // Base-10 logarithm
-    registerOperator({"log", OperatorType::UNARY, [](RPNCalculator& calc) {
+    registerOperator({"log", OperatorType::UNARY, OperatorCategory::LOGARITHMIC, [](RPNCalculator& calc) {
         double x = calc.popStack();
         if (x <= 0) {
             calc.printError("Error: Logarithm of non-positive number");
@@ -238,7 +339,7 @@ void OperatorRegistry::registerLogarithmic() {
     }, "Base-10 logarithm"});
     
     // Exponential
-    registerOperator({"exp", OperatorType::UNARY, [](RPNCalculator& calc) {
+    registerOperator({"exp", OperatorType::UNARY, OperatorCategory::LOGARITHMIC, [](RPNCalculator& calc) {
         double x = calc.popStack();
         double result = std::exp(x);
         if (std::isinf(result)) {
@@ -251,7 +352,7 @@ void OperatorRegistry::registerLogarithmic() {
     }, "Exponential (e^x)"});
     
     // Base-2 logarithm
-    registerOperator({"log2", OperatorType::UNARY, [](RPNCalculator& calc) {
+    registerOperator({"log2", OperatorType::UNARY, OperatorCategory::LOGARITHMIC, [](RPNCalculator& calc) {
         double x = calc.popStack();
         if (x <= 0) {
             calc.printError("Error: Logarithm of non-positive number");
@@ -264,7 +365,7 @@ void OperatorRegistry::registerLogarithmic() {
     }, "Base-2 logarithm"});
     
     // Arbitrary base logarithm: y logb = log_y(x) where x is below y on stack
-    registerOperator({"logb", OperatorType::BINARY, [](RPNCalculator& calc) {
+    registerOperator({"logb", OperatorType::BINARY, OperatorCategory::LOGARITHMIC, [](RPNCalculator& calc) {
         double base = calc.popStack();
         double x = calc.popStack();
         if (x <= 0 || base <= 0) {
@@ -290,18 +391,18 @@ void OperatorRegistry::registerLogarithmic() {
 // ============================================================================
 void OperatorRegistry::registerStackOperations() {
     // Print stack
-    registerOperator({"p", OperatorType::NULLARY, [](RPNCalculator& calc) {
+    registerOperator({"p", OperatorType::NULLARY, OperatorCategory::STACK, [](RPNCalculator& calc) {
         calc.printStack();
     }, "Print stack"});
     
     // Clear stack
-    registerOperator({"c", OperatorType::NULLARY, [](RPNCalculator& calc) {
+    registerOperator({"c", OperatorType::NULLARY, OperatorCategory::STACK, [](RPNCalculator& calc) {
         calc.clearStack();
         std::cout << "Stack cleared" << std::endl;
     }, "Clear stack"});
     
     // Duplicate top
-    registerOperator({"d", OperatorType::NULLARY, [](RPNCalculator& calc) {
+    registerOperator({"d", OperatorType::NULLARY, OperatorCategory::STACK, [](RPNCalculator& calc) {
         if (calc.isStackEmpty()) {
             calc.printError("Error: Stack empty");
             return;
@@ -321,18 +422,18 @@ void OperatorRegistry::registerStackOperations() {
         calc.pushStack(x);
         calc.pushStack(y);
     };
-    registerOperator({"r", OperatorType::NULLARY, swapFunc, "Reverse top 2"});
-    registerOperator({"swap", OperatorType::NULLARY, swapFunc, "Swap top 2 (alias for r)"});
+    registerOperator({"r", OperatorType::NULLARY, OperatorCategory::STACK, swapFunc, "Reverse top 2"});
+    registerOperator({"swap", OperatorType::NULLARY, OperatorCategory::STACK, swapFunc, "Swap top 2 (alias for r)"});
     
     // Pop
-    registerOperator({"pop", OperatorType::NULLARY, [](RPNCalculator& calc) {
+    registerOperator({"pop", OperatorType::NULLARY, OperatorCategory::STACK, [](RPNCalculator& calc) {
         if (!calc.isStackEmpty()) {
             calc.popStack();
         }
     }, "Pop top value"});
 
     // Copy to clipboard (cross-platform)
-    registerOperator({"copy", OperatorType::NULLARY, [](RPNCalculator& calc) {
+    registerOperator({"copy", OperatorType::NULLARY, OperatorCategory::STACK, [](RPNCalculator& calc) {
         double value = calc.peekStack();
         std::ostringstream oss;
         oss << std::setprecision(calc.getScale()) << value;
@@ -371,7 +472,7 @@ void OperatorRegistry::registerStackOperations() {
     }, "Copy top to clipboard"});
     
     // Sum all stack values
-    registerOperator({"sum", OperatorType::NULLARY, [](RPNCalculator& calc) {
+    registerOperator({"sum", OperatorType::NULLARY, OperatorCategory::STACK, [](RPNCalculator& calc) {
         if (calc.isStackEmpty()) {
             calc.pushStack(0);
             calc.print(0);
@@ -386,7 +487,7 @@ void OperatorRegistry::registerStackOperations() {
     }, "Sum all stack values"});
     
     // Product of all stack values
-    registerOperator({"prod", OperatorType::NULLARY, [](RPNCalculator& calc) {
+    registerOperator({"prod", OperatorType::NULLARY, OperatorCategory::STACK, [](RPNCalculator& calc) {
         if (calc.isStackEmpty()) {
             calc.pushStack(1);
             calc.print(1);
@@ -402,11 +503,118 @@ void OperatorRegistry::registerStackOperations() {
 }
 
 // ============================================================================
+// UNIT CONVERSIONS
+// ============================================================================
+void OperatorRegistry::registerUnitConversions() {
+    // Temperature conversions
+    registerOperator({"c>f", OperatorType::UNARY, OperatorCategory::CONVERSION, [](RPNCalculator& calc) {
+        double c = calc.popStack();
+        double f = c * 9.0 / 5.0 + 32.0;
+        calc.pushStack(f);
+        calc.print(f);
+    }, "Celsius to Fahrenheit (F = C * 9/5 + 32)"});
+    
+    registerOperator({"f>c", OperatorType::UNARY, OperatorCategory::CONVERSION, [](RPNCalculator& calc) {
+        double f = calc.popStack();
+        double c = (f - 32.0) * 5.0 / 9.0;
+        calc.pushStack(c);
+        calc.print(c);
+    }, "Fahrenheit to Celsius (C = (F - 32) * 5/9)"});
+    
+    // Distance conversions
+    registerOperator({"km>mi", OperatorType::UNARY, OperatorCategory::CONVERSION, [](RPNCalculator& calc) {
+        double km = calc.popStack();
+        double mi = km / 1.609344;
+        calc.pushStack(mi);
+        calc.print(mi);
+    }, "Kilometers to miles (1 mi = 1.609344 km)"});
+    
+    registerOperator({"mi>km", OperatorType::UNARY, OperatorCategory::CONVERSION, [](RPNCalculator& calc) {
+        double mi = calc.popStack();
+        double km = mi * 1.609344;
+        calc.pushStack(km);
+        calc.print(km);
+    }, "Miles to kilometers (1 mi = 1.609344 km)"});
+    
+    registerOperator({"m>ft", OperatorType::UNARY, OperatorCategory::CONVERSION, [](RPNCalculator& calc) {
+        double m = calc.popStack();
+        double ft = m / 0.3048;
+        calc.pushStack(ft);
+        calc.print(ft);
+    }, "Meters to feet (1 ft = 0.3048 m)"});
+    
+    registerOperator({"ft>m", OperatorType::UNARY, OperatorCategory::CONVERSION, [](RPNCalculator& calc) {
+        double ft = calc.popStack();
+        double m = ft * 0.3048;
+        calc.pushStack(m);
+        calc.print(m);
+    }, "Feet to meters (1 ft = 0.3048 m)"});
+    
+    registerOperator({"cm>in", OperatorType::UNARY, OperatorCategory::CONVERSION, [](RPNCalculator& calc) {
+        double cm = calc.popStack();
+        double in = cm / 2.54;
+        calc.pushStack(in);
+        calc.print(in);
+    }, "Centimeters to inches (1 in = 2.54 cm)"});
+    
+    registerOperator({"in>cm", OperatorType::UNARY, OperatorCategory::CONVERSION, [](RPNCalculator& calc) {
+        double in = calc.popStack();
+        double cm = in * 2.54;
+        calc.pushStack(cm);
+        calc.print(cm);
+    }, "Inches to centimeters (1 in = 2.54 cm)"});
+    
+    // Weight/mass conversions
+    registerOperator({"kg>lb", OperatorType::UNARY, OperatorCategory::CONVERSION, [](RPNCalculator& calc) {
+        double kg = calc.popStack();
+        double lb = kg * 2.20462262;
+        calc.pushStack(lb);
+        calc.print(lb);
+    }, "Kilograms to pounds (1 kg = 2.20462262 lb)"});
+    
+    registerOperator({"lb>kg", OperatorType::UNARY, OperatorCategory::CONVERSION, [](RPNCalculator& calc) {
+        double lb = calc.popStack();
+        double kg = lb / 2.20462262;
+        calc.pushStack(kg);
+        calc.print(kg);
+    }, "Pounds to kilograms (1 kg = 2.20462262 lb)"});
+    
+    registerOperator({"g>oz", OperatorType::UNARY, OperatorCategory::CONVERSION, [](RPNCalculator& calc) {
+        double g = calc.popStack();
+        double oz = g / 28.3495231;
+        calc.pushStack(oz);
+        calc.print(oz);
+    }, "Grams to ounces (1 oz = 28.3495231 g)"});
+    
+    registerOperator({"oz>g", OperatorType::UNARY, OperatorCategory::CONVERSION, [](RPNCalculator& calc) {
+        double oz = calc.popStack();
+        double g = oz * 28.3495231;
+        calc.pushStack(g);
+        calc.print(g);
+    }, "Ounces to grams (1 oz = 28.3495231 g)"});
+    
+    // Volume conversions
+    registerOperator({"l>gal", OperatorType::UNARY, OperatorCategory::CONVERSION, [](RPNCalculator& calc) {
+        double l = calc.popStack();
+        double gal = l / 3.78541178;
+        calc.pushStack(gal);
+        calc.print(gal);
+    }, "Liters to US gallons (1 gal = 3.78541178 L)"});
+    
+    registerOperator({"gal>l", OperatorType::UNARY, OperatorCategory::CONVERSION, [](RPNCalculator& calc) {
+        double gal = calc.popStack();
+        double l = gal * 3.78541178;
+        calc.pushStack(l);
+        calc.print(l);
+    }, "US gallons to liters (1 gal = 3.78541178 L)"});
+}
+
+// ============================================================================
 // MISCELLANEOUS OPERATORS
 // ============================================================================
 void OperatorRegistry::registerMiscellaneous() {
     // Square root
-    registerOperator({"sqrt", OperatorType::UNARY, [](RPNCalculator& calc) {
+    registerOperator({"sqrt", OperatorType::UNARY, OperatorCategory::MISCELLANEOUS, [](RPNCalculator& calc) {
         double x = calc.popStack();
         if (x < 0) {
             calc.printError("Error: Square root of negative number");
@@ -419,7 +627,7 @@ void OperatorRegistry::registerMiscellaneous() {
     }, "Square root"});
     
     // Absolute value
-    registerOperator({"abs", OperatorType::UNARY, [](RPNCalculator& calc) {
+    registerOperator({"abs", OperatorType::UNARY, OperatorCategory::MISCELLANEOUS, [](RPNCalculator& calc) {
         double x = calc.popStack();
         double result = std::abs(x);
         calc.pushStack(result);
@@ -427,7 +635,7 @@ void OperatorRegistry::registerMiscellaneous() {
     }, "Absolute value"});
     
     // Negation
-    registerOperator({"neg", OperatorType::UNARY, [](RPNCalculator& calc) {
+    registerOperator({"neg", OperatorType::UNARY, OperatorCategory::MISCELLANEOUS, [](RPNCalculator& calc) {
         double x = calc.popStack();
         double result = -x;
         calc.pushStack(result);
@@ -435,7 +643,7 @@ void OperatorRegistry::registerMiscellaneous() {
     }, "Negation"});
     
     // Inverse (1/x)
-    registerOperator({"inv", OperatorType::UNARY, [](RPNCalculator& calc) {
+    registerOperator({"inv", OperatorType::UNARY, OperatorCategory::MISCELLANEOUS, [](RPNCalculator& calc) {
         double x = calc.popStack();
         if (x == 0) {
             calc.printError("Error: Division by zero");
@@ -448,7 +656,7 @@ void OperatorRegistry::registerMiscellaneous() {
     }, "Inverse (1/x)"});
     
     // Gamma function
-    registerOperator({"gamma", OperatorType::UNARY, [](RPNCalculator& calc) {
+    registerOperator({"gamma", OperatorType::UNARY, OperatorCategory::MISCELLANEOUS, [](RPNCalculator& calc) {
         double x = calc.popStack();
         double result = std::tgamma(x);
         if (std::isnan(result)) {
@@ -466,7 +674,7 @@ void OperatorRegistry::registerMiscellaneous() {
     }, "Gamma function"});
     
     // Factorial (using gamma)
-    registerOperator({"!", OperatorType::UNARY, [](RPNCalculator& calc) {
+    registerOperator({"!", OperatorType::UNARY, OperatorCategory::MISCELLANEOUS, [](RPNCalculator& calc) {
         double x = calc.popStack();
         double result = std::tgamma(x + 1);
         if (std::isnan(result)) {
@@ -484,7 +692,7 @@ void OperatorRegistry::registerMiscellaneous() {
     }, "Factorial"});
     
     // Floor
-    registerOperator({"floor", OperatorType::UNARY, [](RPNCalculator& calc) {
+    registerOperator({"floor", OperatorType::UNARY, OperatorCategory::MISCELLANEOUS, [](RPNCalculator& calc) {
         double x = calc.popStack();
         double result = std::floor(x);
         calc.pushStack(result);
@@ -492,7 +700,7 @@ void OperatorRegistry::registerMiscellaneous() {
     }, "Floor (round down)"});
     
     // Ceil
-    registerOperator({"ceil", OperatorType::UNARY, [](RPNCalculator& calc) {
+    registerOperator({"ceil", OperatorType::UNARY, OperatorCategory::MISCELLANEOUS, [](RPNCalculator& calc) {
         double x = calc.popStack();
         double result = std::ceil(x);
         calc.pushStack(result);
@@ -500,7 +708,7 @@ void OperatorRegistry::registerMiscellaneous() {
     }, "Ceiling (round up)"});
     
     // Round
-    registerOperator({"round", OperatorType::UNARY, [](RPNCalculator& calc) {
+    registerOperator({"round", OperatorType::UNARY, OperatorCategory::MISCELLANEOUS, [](RPNCalculator& calc) {
         double x = calc.popStack();
         double result = std::round(x);
         calc.pushStack(result);
@@ -508,7 +716,7 @@ void OperatorRegistry::registerMiscellaneous() {
     }, "Round to nearest integer"});
     
     // Trunc
-    registerOperator({"trunc", OperatorType::UNARY, [](RPNCalculator& calc) {
+    registerOperator({"trunc", OperatorType::UNARY, OperatorCategory::MISCELLANEOUS, [](RPNCalculator& calc) {
         double x = calc.popStack();
         double result = std::trunc(x);
         calc.pushStack(result);
@@ -516,62 +724,115 @@ void OperatorRegistry::registerMiscellaneous() {
     }, "Truncate (round toward zero)"});
     
     // Constants
-    registerOperator({"pi", OperatorType::NULLARY, [](RPNCalculator& calc) {
+    registerOperator({"pi", OperatorType::NULLARY, OperatorCategory::MISCELLANEOUS, [](RPNCalculator& calc) {
         calc.pushStack(M_PI);
         calc.print(M_PI);
-    }, "Push π (3.14159...)"});
+    }, "Push pi (3.14159...)"});
     
-    registerOperator({"e", OperatorType::NULLARY, [](RPNCalculator& calc) {
+    registerOperator({"e", OperatorType::NULLARY, OperatorCategory::MISCELLANEOUS, [](RPNCalculator& calc) {
         calc.pushStack(M_E);
         calc.print(M_E);
     }, "Push e (2.71828...)"});
     
-    registerOperator({"phi", OperatorType::NULLARY, [](RPNCalculator& calc) {
+    registerOperator({"phi", OperatorType::NULLARY, OperatorCategory::MISCELLANEOUS, [](RPNCalculator& calc) {
         double phi = (1.0 + std::sqrt(5.0)) / 2.0;  // Golden ratio
         calc.pushStack(phi);
         calc.print(phi);
-    }, "Push φ golden ratio (1.61803...)"});
+    }, "Push phi golden ratio (1.61803...)"});
     
     // Angle mode commands
-    registerOperator({"deg", OperatorType::NULLARY, [](RPNCalculator& calc) {
+    registerOperator({"deg", OperatorType::NULLARY, OperatorCategory::MISCELLANEOUS, [](RPNCalculator& calc) {
         calc.setAngleMode("degrees");
         std::cout << "Angle mode: degrees" << std::endl;
     }, "Set degrees mode"});
     
-    registerOperator({"rad", OperatorType::NULLARY, [](RPNCalculator& calc) {
+    registerOperator({"rad", OperatorType::NULLARY, OperatorCategory::MISCELLANEOUS, [](RPNCalculator& calc) {
         calc.setAngleMode("radians");
         std::cout << "Angle mode: radians" << std::endl;
     }, "Set radians mode"});
     
-    registerOperator({"grd", OperatorType::NULLARY, [](RPNCalculator& calc) {
+    registerOperator({"grd", OperatorType::NULLARY, OperatorCategory::MISCELLANEOUS, [](RPNCalculator& calc) {
         calc.setAngleMode("gradians");
         std::cout << "Angle mode: gradians" << std::endl;
     }, "Set gradians mode"});
     
-    // Help command
-    registerOperator({"help", OperatorType::NULLARY, [](RPNCalculator&) {
+    // Help command - shows operators grouped by category
+    registerOperator({"help", OperatorType::NULLARY, OperatorCategory::MISCELLANEOUS, [](RPNCalculator&) {
         OperatorRegistry& reg = OperatorRegistry::instance();
-        std::vector<std::string> names = reg.getAllNames();
+        
+        // Show operators grouped by category
+        for (OperatorCategory cat : reg.allCategories()) {
+            std::vector<std::string> names = reg.getNamesByCategory(cat);
+            if (names.empty()) continue;
+            
+            std::sort(names.begin(), names.end());
+            std::cout << "\n" << reg.categoryName(cat) << ":" << std::endl;
+            for (const auto& name : names) {
+                const Operator* op = reg.getOperator(name);
+                if (op) {
+                    std::cout << "  " << name << " - " << op->description << std::endl;
+                }
+            }
+        }
+        std::cout << "\nVariables:" << std::endl;
+        std::cout << "  name= - Store top of stack to variable 'name'" << std::endl;
+        std::cout << "  name  - Recall variable 'name' (must not shadow operator)" << std::endl;
+        std::cout << "\nMacros:" << std::endl;
+        std::cout << "  name[ - Start recording macro 'name'" << std::endl;
+        std::cout << "  ]     - Stop recording" << std::endl;
+        std::cout << "  name@ - Play macro 'name'" << std::endl;
+        std::cout << "\nSpecial commands: scale, fmt, q/quit/exit" << std::endl;
+        std::cout << "\nTiered help: help_<category>" << std::endl;
+        std::cout << "  help_arith, help_trig, help_hyper, help_log, help_stack, help_conv, help_misc" << std::endl;
+    }, "Show this help"});
+    
+    registerOperator({"?", OperatorType::NULLARY, OperatorCategory::MISCELLANEOUS, [](RPNCalculator& calc) {
+        // Alias for help
+        const Operator* helpOp = OperatorRegistry::instance().getOperator("help");
+        if (helpOp) helpOp->execute(calc);
+    }, "Show help (alias for help)"});
+    
+    // Helper for category-specific help
+    auto categoryHelp = [](OperatorCategory cat) {
+        OperatorRegistry& reg = OperatorRegistry::instance();
+        std::vector<std::string> names = reg.getNamesByCategory(cat);
         std::sort(names.begin(), names.end());
         
-        std::cout << "Available operators:" << std::endl;
+        std::cout << reg.categoryName(cat) << " operators:" << std::endl;
         for (const auto& name : names) {
             const Operator* op = reg.getOperator(name);
             if (op) {
                 std::cout << "  " << name << " - " << op->description << std::endl;
             }
         }
-        std::cout << "\nSpecial commands: sto, rcl, scale, fmt, q/quit/exit" << std::endl;
-        std::cout << "\nMacros:" << std::endl;
-        std::cout << "  x[  - Start recording macro to slot x (default 0)" << std::endl;
-        std::cout << "  ]   - Stop recording" << std::endl;
-        std::cout << "  x@  - Play macro from slot x" << std::endl;
-        std::cout << "\nConfig: loads .rpn from current dir or ~/.rpn" << std::endl;
-    }, "Show this help"});
+    };
     
-    registerOperator({"?", OperatorType::NULLARY, [](RPNCalculator& calc) {
-        // Alias for help
-        const Operator* helpOp = OperatorRegistry::instance().getOperator("help");
-        if (helpOp) helpOp->execute(calc);
-    }, "Show help (alias for help)"});
+    // Tiered help commands
+    registerOperator({"help_arith", OperatorType::NULLARY, OperatorCategory::MISCELLANEOUS, [categoryHelp](RPNCalculator&) {
+        categoryHelp(OperatorCategory::ARITHMETIC);
+    }, "Help for arithmetic operators"});
+    
+    registerOperator({"help_trig", OperatorType::NULLARY, OperatorCategory::MISCELLANEOUS, [categoryHelp](RPNCalculator&) {
+        categoryHelp(OperatorCategory::TRIGONOMETRIC);
+    }, "Help for trigonometric operators"});
+    
+    registerOperator({"help_hyper", OperatorType::NULLARY, OperatorCategory::MISCELLANEOUS, [categoryHelp](RPNCalculator&) {
+        categoryHelp(OperatorCategory::HYPERBOLIC);
+    }, "Help for hyperbolic operators"});
+    
+    registerOperator({"help_log", OperatorType::NULLARY, OperatorCategory::MISCELLANEOUS, [categoryHelp](RPNCalculator&) {
+        categoryHelp(OperatorCategory::LOGARITHMIC);
+    }, "Help for logarithmic operators"});
+    
+    registerOperator({"help_stack", OperatorType::NULLARY, OperatorCategory::MISCELLANEOUS, [categoryHelp](RPNCalculator&) {
+        categoryHelp(OperatorCategory::STACK);
+    }, "Help for stack operators"});
+    
+    registerOperator({"help_conv", OperatorType::NULLARY, OperatorCategory::MISCELLANEOUS, [categoryHelp](RPNCalculator&) {
+        categoryHelp(OperatorCategory::CONVERSION);
+    }, "Help for unit conversion operators"});
+    
+    registerOperator({"help_misc", OperatorType::NULLARY, OperatorCategory::MISCELLANEOUS, [categoryHelp](RPNCalculator&) {
+        categoryHelp(OperatorCategory::MISCELLANEOUS);
+    }, "Help for miscellaneous operators"});
 }

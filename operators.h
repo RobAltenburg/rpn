@@ -17,10 +17,22 @@ enum class OperatorType {
     BINARY      // Two arguments
 };
 
+// Operator categories for help organization
+enum class OperatorCategory {
+    ARITHMETIC,
+    TRIGONOMETRIC,
+    HYPERBOLIC,
+    LOGARITHMIC,
+    STACK,
+    CONVERSION,
+    MISCELLANEOUS
+};
+
 // Operator definition
 struct Operator {
     std::string name;
     OperatorType type;
+    OperatorCategory category;
     std::function<void(RPNCalculator&)> execute;
     std::string description;
 };
@@ -36,6 +48,9 @@ public:
     
     // Get all operator names for help/extraction
     std::vector<std::string> getAllNames() const;
+    std::vector<std::string> getNamesByCategory(OperatorCategory category) const;
+    static std::string categoryName(OperatorCategory category);
+    static const std::vector<OperatorCategory>& allCategories();
     
 private:
     OperatorRegistry();
@@ -47,8 +62,10 @@ private:
     // Helper to register operators by category
     void registerArithmetic();
     void registerTrigonometric();
+    void registerHyperbolic();
     void registerLogarithmic();
     void registerStackOperations();
+    void registerUnitConversions();
     void registerMiscellaneous();
 };
 

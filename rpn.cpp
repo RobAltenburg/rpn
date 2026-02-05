@@ -13,8 +13,8 @@
 
 // Constructor
 RPNCalculator::RPNCalculator()
-    : angleMode_(AngleMode::RADIANS), scale_(15), recordingSlot_(-1), isPlayingMacro_(false),
-      decimalSeparator_('.'), thousandsSeparator_(','), localeFormatting_(true) {
+    : angleMode_(AngleMode::RADIANS), scale_(15), recordingSlot_(-1), recordingName_(""),
+      isPlayingMacro_(false), decimalSeparator_('.'), thousandsSeparator_(','), localeFormatting_(true) {
     detectLocaleSeparators();
 }
 
@@ -156,6 +156,51 @@ double RPNCalculator::recallMemory(int location) const {
         return it->second;
     }
     return 0.0;
+}
+
+// ============================================================================
+// NAMED VARIABLE OPERATIONS
+// ============================================================================
+bool RPNCalculator::storeVariable(const std::string& name, double value) {
+    // Check if name would shadow an operator
+    OperatorRegistry& registry = OperatorRegistry::instance();
+    if (registry.hasOperator(name)) {
+        return false;  // Cannot shadow operator
+    }
+    // Also check built-in commands
+    if (name == "sto" || name == "rcl" || name == "scale" || name == "fmt" ||
+        name == "q" || name == "quit" || name == "exit") {
+        return false;
+    }
+    namedVariables_[name] = value;
+    return true;
+}
+
+bool RPNCalculator::hasVariable(const std::string& name) const {
+    return namedVariables_.find(name) != namedVariables_.end();
+}
+
+double RPNCalculator::recallVariable(const std::string& name) const {
+    auto it = namedVariables_.find(name);
+    if (it != namedVariables_.end()) {
+        return it->second;
+    }
+    return 0.0;
+}
+
+// ============================================================================
+// NAMED MACRO OPERATIONS
+// ============================================================================
+bool RPNCalculator::hasNamedMacro(const std::string& name) const {
+    return namedMacros_.find(name) != namedMacros_.end();
+}
+
+const std::vector<std::string>* RPNCalculator::getNamedMacro(const std::string& name) const {
+    auto it = namedMacros_.find(name);
+    if (it != namedMacros_.end()) {
+        return &it->second;
+    }
+    return nullptr;
 }
 
 // ============================================================================
@@ -371,10 +416,67 @@ void RPNCalculator::processToken(const std::string& token) {
     
     OperatorRegistry& registry = OperatorRegistry::instance();
     
-    // Handle start recording: "[" with optional slot number on stack (default 0)
+    // Handle named variable assignment: "name="
+    if (token.length() > 1 && token.back() == '=') {
+        std::string varName = token.substr(0, token.length() - 1);
+        if (stack_.empty()) {
+            printError("Error: Need value on stack for assignment");
+            return;
+        }
+        double value = stack_.top();  // Don't pop - keep value on stack
+        if (!storeVariable(varName, value)) {
+            printError("Error: Cannot use '" + varName + "' as variable name (shadows operator)");
+            return;
+        }
+        std::cout << varName << " = " << formatNumber(value) << std::endl;
+        return;
+    }
+    
+    // Handle named macro recording start: "name["
+    if (token.length() > 1 && token.back() == '[') {
+        if (isRecording()) {
+            std::string current = recordingName_.empty() ? std::to_string(recordingSlot_) : recordingName_;
+            printError("Error: Already recording macro '" + current + "'");
+            return;
+        }
+        std::string macroName = token.substr(0, token.length() - 1);
+        // Check if name would shadow an operator
+        if (registry.hasOperator(macroName)) {
+            printError("Error: Cannot use '" + macroName + "' as macro name (shadows operator)");
+            return;
+        }
+        recordingName_ = macroName;
+        recordingBuffer_.clear();
+        std::cout << "Recording macro '" << recordingName_ << "'..." << std::endl;
+        return;
+    }
+    
+    // Handle named macro playback: "name@"
+    if (token.length() > 1 && token.back() == '@') {
+        if (isPlayingMacro_) {
+            printError("Error: Nested macro playback not supported");
+            return;
+        }
+        std::string macroName = token.substr(0, token.length() - 1);
+        const std::vector<std::string>* macro = getNamedMacro(macroName);
+        if (!macro) {
+            printError("Error: No macro named '" + macroName + "'");
+            return;
+        }
+        isPlayingMacro_ = true;
+        for (const auto& t : *macro) {
+            std::cout << "  @" << macroName << ": " << t << std::endl;
+            processToken(t);
+        }
+        isPlayingMacro_ = false;
+        return;
+    }
+    
+    // Handle start recording (numeric slot - deprecated): "[" with optional slot number on stack (default 0)
     if (token == "[") {
         if (isRecording()) {
-            printError("Error: Already recording macro " + std::to_string(recordingSlot_));
+            std::string current = recordingName_.empty() ? std::to_string(recordingSlot_) : recordingName_;
+            printError("Error: Already recording macro '" + current + "'");
             return;
         }
         int slot = 0;
@@ -389,7 +491,7 @@ void RPNCalculator::processToken(const std::string& token) {
         }
         recordingSlot_ = slot;
         recordingBuffer_.clear();
-        std::cout << "Recording macro " << recordingSlot_ << "..." << std::endl;
+        std::cout << "Recording macro " << recordingSlot_ << " (deprecated, use name[ syntax)..." << std::endl;
         return;
     }
     
@@ -399,15 +501,24 @@ void RPNCalculator::processToken(const std::string& token) {
             printError("Error: Not recording");
             return;
         }
-        macros_[recordingSlot_] = recordingBuffer_;
-        std::cout << "Recorded macro " << recordingSlot_ 
-                  << " (" << recordingBuffer_.size() << " commands)" << std::endl;
-        recordingSlot_ = -1;
+        if (!recordingName_.empty()) {
+            // Named macro
+            namedMacros_[recordingName_] = recordingBuffer_;
+            std::cout << "Recorded macro '" << recordingName_ 
+                      << "' (" << recordingBuffer_.size() << " commands)" << std::endl;
+            recordingName_.clear();
+        } else {
+            // Numeric slot (deprecated)
+            macros_[recordingSlot_] = recordingBuffer_;
+            std::cout << "Recorded macro " << recordingSlot_ 
+                      << " (" << recordingBuffer_.size() << " commands)" << std::endl;
+            recordingSlot_ = -1;
+        }
         recordingBuffer_.clear();
         return;
     }
     
-    // Handle macro playback: "@" with optional slot number on stack (default 0)
+    // Handle macro playback (numeric slot - deprecated): "@" with optional slot number on stack (default 0)
     if (token == "@") {
         if (isPlayingMacro_) {
             printError("Error: Nested macro playback not supported");
@@ -443,7 +554,7 @@ void RPNCalculator::processToken(const std::string& token) {
         recordingBuffer_.push_back(token);
     }
     
-    // Handle sto command
+    // Handle sto command (deprecated - use name= syntax)
     if (token == "sto") {
         if (stack_.size() < 2) {
             printError("Error: Need location and value on stack");
@@ -459,10 +570,11 @@ void RPNCalculator::processToken(const std::string& token) {
         int location = static_cast<int>(locDouble);
         double value = stack_.top();
         memory_[location] = value;
+        std::cout << "(deprecated: use 'name=' instead)" << std::endl;
         return;
     }
     
-    // Handle rcl command
+    // Handle rcl command (deprecated - use variable name instead)
     if (token == "rcl") {
         if (stack_.empty()) {
             printError("Error: Need location on stack");
@@ -478,6 +590,7 @@ void RPNCalculator::processToken(const std::string& token) {
         double value = recallMemory(location);
         stack_.push(value);
         print(value);
+        std::cout << "(deprecated: use variable names instead)" << std::endl;
         return;
     }
     
@@ -542,6 +655,14 @@ void RPNCalculator::processToken(const std::string& token) {
     const Operator* op = registry.getOperator(token);
     if (op) {
         op->execute(*this);
+        return;
+    }
+    
+    // Check if it's a named variable
+    if (hasVariable(token)) {
+        double value = recallVariable(token);
+        stack_.push(value);
+        print(value);
         return;
     }
     
@@ -640,17 +761,39 @@ void RPNCalculator::loadConfig() {
                     localeFormatting_ = true;
                 }
             }
+        } else if (cmd == "var") {
+            // var <name> <value>
+            std::string name;
+            double val;
+            if (iss >> name >> val) {
+                // Silently ignore if it would shadow an operator
+                storeVariable(name, val);
+            }
         } else if (cmd == "macro") {
-            // macro <slot> <tokens...>
-            int slot;
-            if (iss >> slot) {
+            // macro <name|slot> <tokens...>
+            // Try to parse as int first for backwards compat
+            std::string nameOrSlot;
+            if (iss >> nameOrSlot) {
                 std::vector<std::string> tokens;
                 std::string token;
                 while (iss >> token) {
                     tokens.push_back(token);
                 }
                 if (!tokens.empty()) {
-                    macros_[slot] = tokens;
+                    // Check if it's a numeric slot (deprecated)
+                    bool isNumeric = true;
+                    for (char c : nameOrSlot) {
+                        if (!isdigit(c) && c != '-') {
+                            isNumeric = false;
+                            break;
+                        }
+                    }
+                    if (isNumeric) {
+                        int slot = std::stoi(nameOrSlot);
+                        macros_[slot] = tokens;
+                    } else {
+                        namedMacros_[nameOrSlot] = tokens;
+                    }
                 }
             }
         }
@@ -670,7 +813,11 @@ void RPNCalculator::run() {
     while (true) {
         // Show recording indicator in prompt
         if (isRecording()) {
-            std::cout << "rec:" << recordingSlot_ << "> ";
+            if (!recordingName_.empty()) {
+                std::cout << "rec:" << recordingName_ << "> ";
+            } else {
+                std::cout << "rec:" << recordingSlot_ << "> ";
+            }
         } else {
             std::cout << "> ";
         }
@@ -682,6 +829,7 @@ void RPNCalculator::run() {
             if (isRecording()) {
                 std::cout << "Recording discarded" << std::endl;
                 recordingSlot_ = -1;
+                recordingName_.clear();
                 recordingBuffer_.clear();
             }
             break;
