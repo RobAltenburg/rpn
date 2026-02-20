@@ -56,6 +56,7 @@ std::string OperatorRegistry::categoryName(OperatorCategory category) {
         case OperatorCategory::STACK: return "Stack";
         case OperatorCategory::CONVERSION: return "Unit Conversion";
         case OperatorCategory::MISCELLANEOUS: return "Miscellaneous";
+        case OperatorCategory::USER: return "User-defined";
     }
     return "Unknown";
 }
@@ -68,7 +69,8 @@ const std::vector<OperatorCategory>& OperatorRegistry::allCategories() {
         OperatorCategory::LOGARITHMIC,
         OperatorCategory::STACK,
         OperatorCategory::CONVERSION,
-        OperatorCategory::MISCELLANEOUS
+        OperatorCategory::MISCELLANEOUS,
+        OperatorCategory::USER
     };
     return categories;
 }
@@ -796,9 +798,12 @@ void OperatorRegistry::registerMiscellaneous() {
         std::cout << "  name[ - Start recording macro 'name'" << std::endl;
         std::cout << "  ]     - Stop recording" << std::endl;
         std::cout << "  name@ - Play macro 'name'" << std::endl;
+        std::cout << "\nUser-defined operators:" << std::endl;
+        std::cout << "  name{ - Start defining operator 'name'" << std::endl;
+        std::cout << "  }     - Stop defining and save to ~/.rpn" << std::endl;
         std::cout << "\nSpecial commands: scale, fmt, q/quit/exit" << std::endl;
         std::cout << "\nTiered help: help_<category>" << std::endl;
-        std::cout << "  help_arith, help_trig, help_hyper, help_log, help_stack, help_conv, help_misc" << std::endl;
+        std::cout << "  help_arith, help_trig, help_hyper, help_log, help_stack, help_conv, help_misc, help_user" << std::endl;
     }, "Show this help"});
     
     registerOperator({"?", OperatorType::NULLARY, OperatorCategory::MISCELLANEOUS, [](RPNCalculator& calc) {
@@ -850,4 +855,8 @@ void OperatorRegistry::registerMiscellaneous() {
     registerOperator({"help_misc", OperatorType::NULLARY, OperatorCategory::MISCELLANEOUS, [categoryHelp](RPNCalculator&) {
         categoryHelp(OperatorCategory::MISCELLANEOUS);
     }, "Help for miscellaneous operators"});
+
+    registerOperator({"help_user", OperatorType::NULLARY, OperatorCategory::MISCELLANEOUS, [categoryHelp](RPNCalculator&) {
+        categoryHelp(OperatorCategory::USER);
+    }, "Help for user-defined operators"});
 }

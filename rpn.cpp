@@ -13,10 +13,14 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
+// Forward declaration - defined in readline completion section
+extern std::vector<std::string> g_completions;
+
 // Constructor
 RPNCalculator::RPNCalculator()
     : angleMode_(AngleMode::RADIANS), scale_(15), recordingSlot_(-1), recordingName_(""),
-      isPlayingMacro_(false), decimalSeparator_('.'), thousandsSeparator_(','), localeFormatting_(true) {
+      isPlayingMacro_(false), definingOp_(""),
+      decimalSeparator_('.'), thousandsSeparator_(','), localeFormatting_(true) {
     detectLocaleSeparators();
 }
 
@@ -203,6 +207,69 @@ const std::vector<std::string>* RPNCalculator::getNamedMacro(const std::string& 
         return &it->second;
     }
     return nullptr;
+}
+
+// ============================================================================
+// USER-DEFINED OPERATOR OPERATIONS
+// ============================================================================
+bool RPNCalculator::registerUserOperator(const std::string& name, const std::string& description,
+                                          const std::vector<std::string>& tokens) {
+    OperatorRegistry& registry = OperatorRegistry::instance();
+    if (registry.hasOperator(name)) {
+        // Allow re-registration of user-defined operators (overwrite)
+        const Operator* existing = registry.getOperator(name);
+        if (existing->category != OperatorCategory::USER) {
+            return false;  // Cannot shadow built-in operator
+        }
+    }
+    // Capture tokens by value in the lambda
+    std::vector<std::string> capturedTokens = tokens;
+    registry.registerOperator({name, OperatorType::NULLARY, OperatorCategory::USER,
+        [capturedTokens](RPNCalculator& calc) {
+            for (const auto& t : capturedTokens) {
+                calc.processToken(t);
+            }
+        }, description});
+    return true;
+}
+
+void RPNCalculator::saveUserOperator(const std::string& name, const std::string& description,
+                                      const std::vector<std::string>& tokens) {
+    const char* home = getenv("HOME");
+    if (!home) return;
+    std::string configPath = std::string(home) + "/.rpn";
+
+    // Read existing config, remove any previous definition of this operator
+    std::vector<std::string> lines;
+    std::ifstream inFile(configPath);
+    if (inFile.is_open()) {
+        std::string line;
+        while (std::getline(inFile, line)) {
+            // Skip existing definition of this operator
+            std::istringstream iss(line);
+            std::string cmd, existingName;
+            iss >> cmd >> existingName;
+            if (cmd == "operator" && existingName == name) continue;
+            lines.push_back(line);
+        }
+        inFile.close();
+    }
+
+    // Build the operator line: operator <name> <description> : <tokens...>
+    std::string opLine = "operator " + name + " " + description + " :";
+    for (const auto& t : tokens) {
+        opLine += " " + t;
+    }
+    lines.push_back(opLine);
+
+    // Write back
+    std::ofstream outFile(configPath);
+    if (outFile.is_open()) {
+        for (const auto& l : lines) {
+            outFile << l << "\n";
+        }
+        outFile.close();
+    }
 }
 
 // ============================================================================
@@ -453,6 +520,59 @@ void RPNCalculator::processToken(const std::string& token) {
         return;
     }
     
+    // Handle user-defined operator start: "name{"
+    if (token.length() > 1 && token.back() == '{') {
+        if (isRecording()) {
+            std::string current = !definingOp_.empty() ? definingOp_ :
+                                  !recordingName_.empty() ? recordingName_ :
+                                  std::to_string(recordingSlot_);
+            printError("Error: Already recording '" + current + "'");
+            return;
+        }
+        std::string opName = token.substr(0, token.length() - 1);
+        // Check if name would shadow a built-in operator
+        if (registry.hasOperator(opName)) {
+            const Operator* existing = registry.getOperator(opName);
+            if (existing->category != OperatorCategory::USER) {
+                printError("Error: Cannot use '" + opName + "' as operator name (shadows built-in)");
+                return;
+            }
+        }
+        definingOp_ = opName;
+        definingBuffer_.clear();
+        std::cout << "Defining operator '" << definingOp_ << "'..." << std::endl;
+        return;
+    }
+
+    // Handle user-defined operator end: "}"
+    if (token == "}") {
+        if (definingOp_.empty()) {
+            printError("Error: Not defining an operator");
+            return;
+        }
+        if (definingBuffer_.empty()) {
+            printError("Error: Operator body is empty");
+            definingOp_.clear();
+            return;
+        }
+        std::string name = definingOp_;
+        std::vector<std::string> tokens = definingBuffer_;
+        definingOp_.clear();
+        definingBuffer_.clear();
+        std::string desc = "User-defined";
+        if (registerUserOperator(name, desc, tokens)) {
+            saveUserOperator(name, desc, tokens);
+            // Add to readline completions
+            g_completions.push_back(name);
+            std::sort(g_completions.begin(), g_completions.end());
+            std::cout << "Defined operator '" << name
+                      << "' (" << tokens.size() << " commands, saved to ~/.rpn)" << std::endl;
+        } else {
+            printError("Error: Cannot define operator '" + name + "' (shadows built-in)");
+        }
+        return;
+    }
+
     // Handle named macro playback: "name@"
     if (token.length() > 1 && token.back() == '@') {
         if (isPlayingMacro_) {
@@ -551,9 +671,13 @@ void RPNCalculator::processToken(const std::string& token) {
         return;
     }
     
-    // If recording, store token (but don't store [ or ])
+    // If recording, store token (but don't store [ ] { })
     if (isRecording()) {
-        recordingBuffer_.push_back(token);
+        if (!definingOp_.empty()) {
+            definingBuffer_.push_back(token);
+        } else {
+            recordingBuffer_.push_back(token);
+        }
     }
     
     // Handle sto command (deprecated - use name= syntax)
@@ -771,6 +895,43 @@ void RPNCalculator::loadConfig() {
                 // Silently ignore if it would shadow an operator
                 storeVariable(name, val);
             }
+        } else if (cmd == "operator") {
+            // operator <name> <description words...> : <tokens...>
+            std::string name;
+            if (iss >> name) {
+                // Read the rest of the line to split on ':'
+                std::string rest;
+                std::getline(iss, rest);
+                size_t colonPos = rest.find(':');
+                std::string description = "User-defined";
+                std::vector<std::string> tokens;
+                if (colonPos != std::string::npos) {
+                    // Description is before ':', tokens after
+                    std::string descPart = rest.substr(0, colonPos);
+                    // Trim whitespace from description
+                    size_t start = descPart.find_first_not_of(" \t");
+                    size_t end = descPart.find_last_not_of(" \t");
+                    if (start != std::string::npos) {
+                        description = descPart.substr(start, end - start + 1);
+                    }
+                    std::string tokenPart = rest.substr(colonPos + 1);
+                    std::istringstream tiss(tokenPart);
+                    std::string tok;
+                    while (tiss >> tok) {
+                        tokens.push_back(tok);
+                    }
+                } else {
+                    // No colon — everything is tokens, use default description
+                    std::istringstream tiss(rest);
+                    std::string tok;
+                    while (tiss >> tok) {
+                        tokens.push_back(tok);
+                    }
+                }
+                if (!tokens.empty()) {
+                    registerUserOperator(name, description, tokens);
+                }
+            }
         } else if (cmd == "macro") {
             // macro <name|slot> <tokens...>
             // Try to parse as int first for backwards compat
@@ -808,7 +969,7 @@ void RPNCalculator::loadConfig() {
 // ============================================================================
 
 // Global list of completions for readline (populated on startup)
-static std::vector<std::string> g_completions;
+std::vector<std::string> g_completions;
 
 // Initialize the completion list with all operators and commands
 static void initCompletions() {
@@ -825,10 +986,12 @@ static void initCompletions() {
     g_completions.push_back("quit");
     g_completions.push_back("exit");
     
-    // TODO: Add user-defined operators from ~/.rpn config file
-    // When user-defined operators are implemented, they should be loaded
-    // from the config file and added to g_completions here.
-    
+    // Add user-defined operators (already loaded into registry by loadConfig)
+    std::vector<std::string> userOps = registry.getNamesByCategory(OperatorCategory::USER);
+    for (const auto& name : userOps) {
+        g_completions.push_back(name);
+    }
+
     // Sort for consistent completion order
     std::sort(g_completions.begin(), g_completions.end());
 }
@@ -884,7 +1047,9 @@ void RPNCalculator::run() {
         // Build prompt with recording indicator
         std::string prompt;
         if (isRecording()) {
-            if (!recordingName_.empty()) {
+            if (!definingOp_.empty()) {
+                prompt = "def:" + definingOp_ + "> ";
+            } else if (!recordingName_.empty()) {
                 prompt = "rec:" + recordingName_ + "> ";
             } else {
                 prompt = "rec:" + std::to_string(recordingSlot_) + "> ";
@@ -917,6 +1082,8 @@ void RPNCalculator::run() {
                 recordingSlot_ = -1;
                 recordingName_.clear();
                 recordingBuffer_.clear();
+                definingOp_.clear();
+                definingBuffer_.clear();
             }
             break;
         }

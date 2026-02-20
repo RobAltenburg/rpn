@@ -25,7 +25,8 @@ enum class OperatorCategory {
     LOGARITHMIC,
     STACK,
     CONVERSION,
-    MISCELLANEOUS
+    MISCELLANEOUS,
+    USER
 };
 
 // Operator definition

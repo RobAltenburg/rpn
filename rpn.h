@@ -35,6 +35,12 @@ public:
     // Named macros
     bool hasNamedMacro(const std::string& name) const;
     const std::vector<std::string>* getNamedMacro(const std::string& name) const;
+
+    // User-defined operators
+    bool registerUserOperator(const std::string& name, const std::string& description,
+                              const std::vector<std::string>& tokens);
+    void saveUserOperator(const std::string& name, const std::string& description,
+                          const std::vector<std::string>& tokens);
     
     // Settings
     void setAngleMode(const std::string& mode);
@@ -64,8 +70,12 @@ private:
     int recordingSlot_;           // -1 if not recording (numeric)
     std::string recordingName_;   // empty if not recording (named)
     std::vector<std::string> recordingBuffer_;
-    bool isRecording() const { return recordingSlot_ >= 0 || !recordingName_.empty(); }
+    bool isRecording() const { return recordingSlot_ >= 0 || !recordingName_.empty() || !definingOp_.empty(); }
     bool isPlayingMacro_;         // Prevent nested macro playback
+
+    // User-defined operator recording
+    std::string definingOp_;              // empty if not defining
+    std::vector<std::string> definingBuffer_;
     
     // Named variables
     std::map<std::string, double> namedVariables_;
