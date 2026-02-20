@@ -10,6 +10,8 @@
 #include <cstdlib>
 #include <locale>
 #include <clocale>
+#include <readline/readline.h>
+#include <readline/history.h>
 
 // Constructor
 RPNCalculator::RPNCalculator()
@@ -802,27 +804,111 @@ void RPNCalculator::loadConfig() {
 }
 
 // ============================================================================
+// READLINE COMPLETION
+// ============================================================================
+
+// Global list of completions for readline (populated on startup)
+static std::vector<std::string> g_completions;
+
+// Initialize the completion list with all operators and commands
+static void initCompletions() {
+    if (!g_completions.empty()) return;  // Already initialized
+    
+    OperatorRegistry& registry = OperatorRegistry::instance();
+    g_completions = registry.getAllNames();
+    
+    // Add built-in commands not in the operator registry
+    g_completions.push_back("sto");
+    g_completions.push_back("rcl");
+    g_completions.push_back("scale");
+    g_completions.push_back("fmt");
+    g_completions.push_back("quit");
+    g_completions.push_back("exit");
+    
+    // TODO: Add user-defined operators from ~/.rpn config file
+    // When user-defined operators are implemented, they should be loaded
+    // from the config file and added to g_completions here.
+    
+    // Sort for consistent completion order
+    std::sort(g_completions.begin(), g_completions.end());
+}
+
+// Readline completion generator - returns matches one at a time
+static char* completionGenerator(const char* text, int state) {
+    static size_t listIndex;
+    static size_t textLen;
+    
+    if (state == 0) {
+        listIndex = 0;
+        textLen = strlen(text);
+    }
+    
+    // Find the next matching completion
+    while (listIndex < g_completions.size()) {
+        const std::string& name = g_completions[listIndex++];
+        if (name.compare(0, textLen, text) == 0) {
+            return strdup(name.c_str());
+        }
+    }
+    
+    return nullptr;
+}
+
+// Custom completion function for readline
+static char** rpnCompletion(const char* text, int start, int end) {
+    (void)start;  // Unused
+    (void)end;    // Unused
+    
+    // Don't complete filenames, only our operators
+    rl_attempted_completion_over = 1;
+    
+    return rl_completion_matches(text, completionGenerator);
+}
+
+// ============================================================================
 // MAIN RUN LOOP
 // ============================================================================
 void RPNCalculator::run() {
     loadConfig();
     
+    // Initialize readline completion
+    initCompletions();
+    rl_attempted_completion_function = rpnCompletion;
+    
+    // Disable default filename completion
+    rl_bind_key('\t', rl_complete);
+    
     std::cout << "RPN Calculator (type 'help' or '?' for commands, 'q' to quit)" << std::endl;
     
-    std::string line;
     while (true) {
-        // Show recording indicator in prompt
+        // Build prompt with recording indicator
+        std::string prompt;
         if (isRecording()) {
             if (!recordingName_.empty()) {
-                std::cout << "rec:" << recordingName_ << "> ";
+                prompt = "rec:" + recordingName_ + "> ";
             } else {
-                std::cout << "rec:" << recordingSlot_ << "> ";
+                prompt = "rec:" + std::to_string(recordingSlot_) + "> ";
             }
         } else {
-            std::cout << "> ";
+            prompt = "> ";
         }
         
-        if (!std::getline(std::cin, line)) break;
+        char* input = readline(prompt.c_str());
+        
+        // EOF (Ctrl-D)
+        if (!input) {
+            std::cout << std::endl;
+            break;
+        }
+        
+        std::string line(input);
+        
+        // Add non-empty lines to history
+        if (!line.empty()) {
+            add_history(input);
+        }
+        
+        free(input);
         
         if (line == "q" || line == "quit" || line == "exit") {
             // Discard any in-progress recording

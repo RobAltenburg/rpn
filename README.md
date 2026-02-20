@@ -20,7 +20,7 @@ A reverse Polish notation (RPN) calculator with memory and macro support
 - **Other Math**: sqrt, abs, neg, inv, gamma, !
 - **Constants**: pi, e, phi (golden ratio)
 - **Stack Commands**: p(rint), c(clear), d(uplicate), r/swap (reverse top 2), pop, sum, prod, copy
-- **Memory**: sto, rcl
+- **Memory**: x= (save top of stack to x), x (recall top of stack),  sto, rcl (deprecated)
 - **Macros**: x[ (start recording), ] (stop recording), x@ (playback) where x is the top of the stack
 - **Angle Modes**: deg (degrees), rad (radians), grd (gradians)
 - **Settings**: scale (set output precision), fmt (toggle localized number formats)
@@ -31,6 +31,11 @@ A reverse Polish notation (RPN) calculator with memory and macro support
 - **Configuration File**: `~/.rpn` can preset memory values, angle mode, and precision
 
 ## Memory Operations
+
+```
+25 x=   # Stores 25 in named variable x, 25 stays on stack
+x       # Recalls value from named variable x
+```
 
 ### Store (sto)
 Stores the top value in a numbered memory location. The value remains on the stack.

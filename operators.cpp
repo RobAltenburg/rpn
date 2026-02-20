@@ -607,6 +607,21 @@ void OperatorRegistry::registerUnitConversions() {
         calc.pushStack(l);
         calc.print(l);
     }, "US gallons to liters (1 gal = 3.78541178 L)"});
+    
+    // Energy conversions
+    registerOperator({"btu>kwh", OperatorType::UNARY, OperatorCategory::CONVERSION, [](RPNCalculator& calc) {
+        double btu = calc.popStack();
+        double kwh = btu / 3412.14163;
+        calc.pushStack(kwh);
+        calc.print(kwh);
+    }, "BTU to kilowatt-hours (1 kWh = 3412.14163 BTU)"});
+    
+    registerOperator({"kwh>btu", OperatorType::UNARY, OperatorCategory::CONVERSION, [](RPNCalculator& calc) {
+        double kwh = calc.popStack();
+        double btu = kwh * 3412.14163;
+        calc.pushStack(btu);
+        calc.print(btu);
+    }, "Kilowatt-hours to BTU (1 kWh = 3412.14163 BTU)"});
 }
 
 // ============================================================================
