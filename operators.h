@@ -44,6 +44,7 @@ public:
     static OperatorRegistry& instance();
     
     void registerOperator(const Operator& op);
+    void removeOperator(const std::string& name);
     bool hasOperator(const std::string& name) const;
     const Operator* getOperator(const std::string& name) const;
     

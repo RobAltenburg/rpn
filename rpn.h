@@ -41,6 +41,7 @@ public:
                               const std::vector<std::string>& tokens);
     void saveUserOperator(const std::string& name, const std::string& description,
                           const std::vector<std::string>& tokens);
+    void deleteUserOperator(const std::string& name);
     
     // Settings
     void setAngleMode(const std::string& mode);
@@ -76,6 +77,7 @@ private:
     // User-defined operator recording
     std::string definingOp_;              // empty if not defining
     std::vector<std::string> definingBuffer_;
+    std::string pendingOpDescription_;    // description from trailing "..." on } line
     
     // Named variables
     std::map<std::string, double> namedVariables_;

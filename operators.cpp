@@ -20,6 +20,10 @@ void OperatorRegistry::registerOperator(const Operator& op) {
     operators_[op.name] = op;
 }
 
+void OperatorRegistry::removeOperator(const std::string& name) {
+    operators_.erase(name);
+}
+
 bool OperatorRegistry::hasOperator(const std::string& name) const {
     return operators_.find(name) != operators_.end();
 }
@@ -799,7 +803,7 @@ void OperatorRegistry::registerMiscellaneous() {
         std::cout << "  ]     - Stop recording" << std::endl;
         std::cout << "  name@ - Play macro 'name'" << std::endl;
         std::cout << "\nUser-defined operators:" << std::endl;
-        std::cout << "  name{ - Start defining operator 'name'" << std::endl;
+        std::cout << "  name{ - Start defining operator 'name' (spacing flexible: 'name {' or 'name{body}')" << std::endl;
         std::cout << "  }     - Stop defining and save to ~/.rpn" << std::endl;
         std::cout << "\nSpecial commands: scale, fmt, q/quit/exit" << std::endl;
         std::cout << "\nTiered help: help_<category>" << std::endl;

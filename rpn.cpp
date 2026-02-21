@@ -272,6 +272,34 @@ void RPNCalculator::saveUserOperator(const std::string& name, const std::string&
     }
 }
 
+void RPNCalculator::deleteUserOperator(const std::string& name) {
+    const char* home = getenv("HOME");
+    if (!home) return;
+    std::string configPath = std::string(home) + "/.rpn";
+
+    std::vector<std::string> lines;
+    std::ifstream inFile(configPath);
+    if (inFile.is_open()) {
+        std::string line;
+        while (std::getline(inFile, line)) {
+            std::istringstream iss(line);
+            std::string cmd, existingName;
+            iss >> cmd >> existingName;
+            if (cmd == "operator" && existingName == name) continue;
+            lines.push_back(line);
+        }
+        inFile.close();
+    }
+
+    std::ofstream outFile(configPath);
+    if (outFile.is_open()) {
+        for (const auto& l : lines) {
+            outFile << l << "\n";
+        }
+        outFile.close();
+    }
+}
+
 // ============================================================================
 // OUTPUT OPERATIONS
 // ============================================================================
@@ -551,15 +579,25 @@ void RPNCalculator::processToken(const std::string& token) {
             return;
         }
         if (definingBuffer_.empty()) {
-            printError("Error: Operator body is empty");
+            std::string name = definingOp_;
             definingOp_.clear();
+            pendingOpDescription_.clear();
+            OperatorRegistry& reg = OperatorRegistry::instance();
+            if (reg.hasOperator(name) && reg.getOperator(name)->category == OperatorCategory::USER) {
+                reg.removeOperator(name);
+                deleteUserOperator(name);
+                g_completions.erase(std::remove(g_completions.begin(), g_completions.end(), name),
+                                    g_completions.end());
+                std::cout << "Deleted operator '" << name << "'" << std::endl;
+            }
             return;
         }
         std::string name = definingOp_;
         std::vector<std::string> tokens = definingBuffer_;
         definingOp_.clear();
         definingBuffer_.clear();
-        std::string desc = "User-defined";
+        std::string desc = pendingOpDescription_.empty() ? "User-defined" : pendingOpDescription_;
+        pendingOpDescription_.clear();
         if (registerUserOperator(name, desc, tokens)) {
             saveUserOperator(name, desc, tokens);
             // Add to readline completions
@@ -797,11 +835,63 @@ void RPNCalculator::processToken(const std::string& token) {
 }
 
 void RPNCalculator::processStatement(const std::string& statement) {
-    std::istringstream iss(statement);
-    std::string token;
-    
-    while (iss >> token) {
-        processToken(token);
+    // Step 1: Extract trailing quoted description after the last '}'.
+    // e.g. double{d +} "double the value" -> desc extracted, stmt trimmed to double{d +}
+    std::string stmt = statement;
+    size_t lastClose = stmt.rfind('}');
+    if (lastClose != std::string::npos) {
+        size_t q = stmt.find_first_not_of(" \t", lastClose + 1);
+        if (q != std::string::npos && stmt[q] == '"') {
+            size_t qEnd = stmt.rfind('"');
+            if (qEnd > q) {
+                pendingOpDescription_ = stmt.substr(q + 1, qEnd - q - 1);
+                stmt = stmt.substr(0, lastClose + 1);
+            }
+        }
+    }
+
+    // Step 2: Build token list.  When a '{' is present we scan at the statement
+    // level so that bodies with spaces (e.g. "name{d +}") are handled correctly.
+    std::vector<std::string> tokens;
+    size_t openBrace = stmt.find('{');
+
+    if (openBrace != std::string::npos) {
+        // Tokenize the part before '{'
+        std::string nameToken;
+        std::istringstream preSS(stmt.substr(0, openBrace));
+        std::string tok;
+        while (preSS >> tok) {
+            if (!nameToken.empty()) tokens.push_back(nameToken);
+            nameToken = tok;
+        }
+        // nameToken is the operator name; emit "name{"
+        tokens.push_back(nameToken + "{");
+
+        size_t closeBrace = stmt.find('}', openBrace);
+        if (closeBrace != std::string::npos) {
+            // Tokenize the body
+            std::string body = stmt.substr(openBrace + 1, closeBrace - openBrace - 1);
+            std::istringstream bodySS(body);
+            while (bodySS >> tok) tokens.push_back(tok);
+            tokens.push_back("}");
+
+            // Any tokens after '}' (unusual, but handle gracefully)
+            std::istringstream postSS(stmt.substr(closeBrace + 1));
+            while (postSS >> tok) tokens.push_back(tok);
+        } else {
+            // No closing brace — '{' starts an interactive definition
+            std::istringstream restSS(stmt.substr(openBrace + 1));
+            while (restSS >> tok) tokens.push_back(tok);
+        }
+    } else {
+        // No braces — plain whitespace tokenization
+        std::istringstream iss(stmt);
+        std::string tok;
+        while (iss >> tok) tokens.push_back(tok);
+    }
+
+    for (const auto& t : tokens) {
+        processToken(t);
     }
 }
 
@@ -1055,7 +1145,7 @@ void RPNCalculator::run() {
                 prompt = "rec:" + std::to_string(recordingSlot_) + "> ";
             }
         } else {
-            prompt = "> ";
+            prompt = std::to_string(stack_.size()) + "> ";
         }
         
         char* input = readline(prompt.c_str());
