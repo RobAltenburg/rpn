@@ -18,7 +18,7 @@
 
 #include <string>
 #include <functional>
-#include <map>
+#include <unordered_map>
 #include <stack>
 #include <vector>
 
@@ -68,10 +68,26 @@ public:
     std::vector<std::string> getNamesByCategory(OperatorCategory category) const;
     static std::string categoryName(OperatorCategory category);
     static const std::vector<OperatorCategory>& allCategories();
+
+    // Cached names sorted by length (desc) for operator extraction
+    const std::vector<std::string>& getNamesSortedByLengthDesc();
+
+    // Readline completions management (encapsulates former global g_completions)
+    void setBuiltinCompletions(const std::vector<std::string>& builtins);
+    const std::vector<std::string>& completions();
     
 private:
     OperatorRegistry();
-    std::map<std::string, Operator> operators_;
+    std::unordered_map<std::string, Operator> operators_;
+
+    // Caches
+    bool names_len_desc_dirty_ = true;
+    std::vector<std::string> names_len_desc_cache_;
+
+    // Completions
+    bool completions_dirty_ = true;
+    std::vector<std::string> builtins_;
+    std::vector<std::string> completions_cache_;
     
     // Initialize all operators
     void initializeOperators();

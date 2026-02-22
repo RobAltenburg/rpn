@@ -28,8 +28,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-// Forward declaration - defined in readline completion section
-extern std::vector<std::string> g_completions;
+// (Completions are now managed by OperatorRegistry)
 
 // Constructor
 RPNCalculator::RPNCalculator()
@@ -492,239 +491,46 @@ std::string RPNCalculator::normalizeNumber(const std::string& token) const {
 // OPERATOR EXTRACTION
 // ============================================================================
 std::string RPNCalculator::extractOperator(const std::string& token, size_t& opStart) const {
-    // Get all registered operators from the registry
     OperatorRegistry& registry = OperatorRegistry::instance();
-    std::vector<std::string> ops = registry.getAllNames();
-    
-    // Add special commands that aren't in the operator registry
-    ops.push_back("sto");
-    ops.push_back("rcl");
-    ops.push_back("[");
-    ops.push_back("]");
-    ops.push_back("@");
-    
-    // Sort by length (longest first) to match longest operator first
-    std::sort(ops.begin(), ops.end(), [](const std::string& a, const std::string& b) {
-        return a.length() > b.length();
-    });
-    
+    const auto& ops = registry.getNamesSortedByLengthDesc();
+
+    // First search registered operators (already sorted by length desc)
     for (const auto& op : ops) {
         if (token.length() >= op.length()) {
             size_t pos = token.length() - op.length();
-            if (token.substr(pos) == op) {
+            if (token.compare(pos, op.length(), op) == 0) {
                 opStart = pos;
                 return op;
             }
         }
     }
+
+    // Then check special commands not in registry
+    static const char* specials[] = {"sto", "rcl", "[", "]", "@", nullptr};
+    for (int i = 0; specials[i] != nullptr; ++i) {
+        const std::string op = specials[i];
+        if (token.length() >= op.length()) {
+            size_t pos = token.length() - op.length();
+            if (token.compare(pos, op.length(), op) == 0) {
+                opStart = pos;
+                return op;
+            }
+        }
+    }
+
     return "";
 }
 
 // ============================================================================
-// TOKEN PROCESSING
+// TOKEN PROCESSING (refactored into small handlers)
 // ============================================================================
 void RPNCalculator::processToken(const std::string& token) {
     if (token.empty()) return;
-    
-    OperatorRegistry& registry = OperatorRegistry::instance();
-    
-    // Handle named variable assignment: "name="
-    if (token.length() > 1 && token.back() == '=') {
-        std::string varName = token.substr(0, token.length() - 1);
-        if (stack_.empty()) {
-            printError("Error: Need value on stack for assignment");
-            return;
-        }
-        double value = stack_.top();  // Don't pop - keep value on stack
-        if (!storeVariable(varName, value)) {
-            printError("Error: Cannot use '" + varName + "' as variable name (shadows operator)");
-            return;
-        }
-        std::cout << varName << " = " << formatNumber(value) << std::endl;
-        return;
-    }
-    
-    // Handle named macro recording start: "name["
-    if (token.length() > 1 && token.back() == '[') {
-        if (isRecording()) {
-            std::string current = recordingName_.empty() ? std::to_string(recordingSlot_) : recordingName_;
-            printError("Error: Already recording macro '" + current + "'");
-            return;
-        }
-        std::string macroName = token.substr(0, token.length() - 1);
-        // Check if name would shadow an operator
-        if (registry.hasOperator(macroName)) {
-            printError("Error: Cannot use '" + macroName + "' as macro name (shadows operator)");
-            return;
-        }
-        recordingName_ = macroName;
-        recordingBuffer_.clear();
-        std::cout << "Recording macro '" << recordingName_ << "'..." << std::endl;
-        return;
-    }
-    
-    // Handle user-defined operator start: "name{"
-    if (token.length() > 1 && token.back() == '{') {
-        if (isRecording()) {
-            std::string current = !definingOp_.empty() ? definingOp_ :
-                                  !recordingName_.empty() ? recordingName_ :
-                                  std::to_string(recordingSlot_);
-            printError("Error: Already recording '" + current + "'");
-            return;
-        }
-        std::string opName = token.substr(0, token.length() - 1);
-        // Check if name would shadow a built-in operator
-        if (registry.hasOperator(opName)) {
-            const Operator* existing = registry.getOperator(opName);
-            if (existing->category != OperatorCategory::USER) {
-                printError("Error: Cannot use '" + opName + "' as operator name (shadows built-in)");
-                return;
-            }
-        }
-        definingOp_ = opName;
-        definingBuffer_.clear();
-        std::cout << "Defining operator '" << definingOp_ << "'..." << std::endl;
-        return;
-    }
 
-    // Handle user-defined operator end: "}"
-    if (token == "}") {
-        if (definingOp_.empty()) {
-            printError("Error: Not defining an operator");
-            return;
-        }
-        if (definingBuffer_.empty()) {
-            std::string name = definingOp_;
-            definingOp_.clear();
-            pendingOpDescription_.clear();
-            OperatorRegistry& reg = OperatorRegistry::instance();
-            if (reg.hasOperator(name) && reg.getOperator(name)->category == OperatorCategory::USER) {
-                reg.removeOperator(name);
-                deleteUserOperator(name);
-                g_completions.erase(std::remove(g_completions.begin(), g_completions.end(), name),
-                                    g_completions.end());
-                std::cout << "Deleted operator '" << name << "'" << std::endl;
-            }
-            return;
-        }
-        std::string name = definingOp_;
-        std::vector<std::string> tokens = definingBuffer_;
-        definingOp_.clear();
-        definingBuffer_.clear();
-        std::string desc = pendingOpDescription_.empty() ? "User-defined" : pendingOpDescription_;
-        pendingOpDescription_.clear();
-        if (registerUserOperator(name, desc, tokens)) {
-            saveUserOperator(name, desc, tokens);
-            // Add to readline completions
-            g_completions.push_back(name);
-            std::sort(g_completions.begin(), g_completions.end());
-            std::cout << "Defined operator '" << name
-                      << "' (" << tokens.size() << " commands, saved to ~/.rpn)" << std::endl;
-        } else {
-            printError("Error: Cannot define operator '" + name + "' (shadows built-in)");
-        }
-        return;
-    }
+    // 1) Meta commands (assignment, macro/op start/stop, playback)
+    if (handleMeta(token)) return;
 
-    // Handle named macro playback: "name@"
-    if (token.length() > 1 && token.back() == '@') {
-        if (isPlayingMacro_) {
-            printError("Error: Nested macro playback not supported");
-            return;
-        }
-        std::string macroName = token.substr(0, token.length() - 1);
-        const std::vector<std::string>* macro = getNamedMacro(macroName);
-        if (!macro) {
-            printError("Error: No macro named '" + macroName + "'");
-            return;
-        }
-        isPlayingMacro_ = true;
-        for (const auto& t : *macro) {
-            std::cout << "  @" << macroName << ": " << t << std::endl;
-            processToken(t);
-        }
-        isPlayingMacro_ = false;
-        return;
-    }
-    
-    // Handle start recording (numeric slot - deprecated): "[" with optional slot number on stack (default 0)
-    if (token == "[") {
-        if (isRecording()) {
-            std::string current = recordingName_.empty() ? std::to_string(recordingSlot_) : recordingName_;
-            printError("Error: Already recording macro '" + current + "'");
-            return;
-        }
-        int slot = 0;
-        if (!stack_.empty()) {
-            double slotDouble = stack_.top();
-            if (slotDouble != std::floor(slotDouble)) {
-                printError("Error: Macro slot must be an integer");
-                return;
-            }
-            stack_.pop();
-            slot = static_cast<int>(slotDouble);
-        }
-        recordingSlot_ = slot;
-        recordingBuffer_.clear();
-        std::cout << "Recording macro " << recordingSlot_ << " (deprecated, use name[ syntax)..." << std::endl;
-        return;
-    }
-    
-    // Handle stop recording: "]"
-    if (token == "]") {
-        if (!isRecording()) {
-            printError("Error: Not recording");
-            return;
-        }
-        if (!recordingName_.empty()) {
-            // Named macro
-            namedMacros_[recordingName_] = recordingBuffer_;
-            std::cout << "Recorded macro '" << recordingName_ 
-                      << "' (" << recordingBuffer_.size() << " commands)" << std::endl;
-            recordingName_.clear();
-        } else {
-            // Numeric slot (deprecated)
-            macros_[recordingSlot_] = recordingBuffer_;
-            std::cout << "Recorded macro " << recordingSlot_ 
-                      << " (" << recordingBuffer_.size() << " commands)" << std::endl;
-            recordingSlot_ = -1;
-        }
-        recordingBuffer_.clear();
-        return;
-    }
-    
-    // Handle macro playback (numeric slot - deprecated): "@" with optional slot number on stack (default 0)
-    if (token == "@") {
-        if (isPlayingMacro_) {
-            printError("Error: Nested macro playback not supported");
-            return;
-        }
-        int slot = 0;
-        if (!stack_.empty()) {
-            double slotDouble = stack_.top();
-            if (slotDouble != std::floor(slotDouble)) {
-                printError("Error: Macro slot must be an integer");
-                return;
-            }
-            stack_.pop();
-            slot = static_cast<int>(slotDouble);
-        }
-        auto it = macros_.find(slot);
-        if (it == macros_.end()) {
-            printError("Error: No macro in slot " + std::to_string(slot));
-            return;
-        }
-        // Play back the macro
-        isPlayingMacro_ = true;
-        for (const auto& t : it->second) {
-            std::cout << "  @" << slot << ": " << t << std::endl;
-            processToken(t);
-        }
-        isPlayingMacro_ = false;
-        return;
-    }
-    
-    // If recording, store token (but don't store [ ] { })
+    // 2) If recording, capture token (preserve existing behavior: still execute below)
     if (isRecording()) {
         if (!definingOp_.empty()) {
             definingBuffer_.push_back(token);
@@ -732,120 +538,35 @@ void RPNCalculator::processToken(const std::string& token) {
             recordingBuffer_.push_back(token);
         }
     }
-    
-    // Handle sto command (deprecated - use name= syntax)
-    if (token == "sto") {
-        if (stack_.size() < 2) {
-            printError("Error: Need location and value on stack");
-            return;
-        }
-        double locDouble = stack_.top();
-        stack_.pop();
-        if (locDouble != std::floor(locDouble)) {
-            stack_.push(locDouble);
-            printError("Error: Memory location must be an integer");
-            return;
-        }
-        int location = static_cast<int>(locDouble);
-        double value = stack_.top();
-        memory_[location] = value;
-        std::cout << "(deprecated: use 'name=' instead)" << std::endl;
-        return;
-    }
-    
-    // Handle rcl command (deprecated - use variable name instead)
-    if (token == "rcl") {
-        if (stack_.empty()) {
-            printError("Error: Need location on stack");
-            return;
-        }
-        double locDouble = stack_.top();
-        if (locDouble != std::floor(locDouble)) {
-            printError("Error: Memory location must be an integer");
-            return;
-        }
-        stack_.pop();
-        int location = static_cast<int>(locDouble);
-        double value = recallMemory(location);
-        stack_.push(value);
-        print(value);
-        std::cout << "(deprecated: use variable names instead)" << std::endl;
-        return;
-    }
-    
-    // Handle scale command
-    if (token == "scale") {
-        if (stack_.empty()) {
-            std::cout << "Current scale: " << scale_ << std::endl;
-        } else {
-            int newScale = static_cast<int>(stack_.top());
-            stack_.pop();
-            if (newScale >= 0 && newScale <= 15) {
-                scale_ = newScale;
-                std::cout << "Scale set to " << scale_ << std::endl;
-            } else {
-                std::cout << "Error: Scale must be between 0 and 15" << std::endl;
-                stack_.push(newScale);
-            }
-        }
-        return;
-    }
 
-    // Handle fmt command - toggle locale formatting
-    if (token == "fmt") {
-        localeFormatting_ = !localeFormatting_;
-        std::cout << "Locale formatting " << (localeFormatting_ ? "on" : "off") << std::endl;
-        return;
-    }
-    
-    // Check if token ends with an operator (e.g., "1+", "5*", "45tan")
-    if (token.length() > 1) {
-        size_t opStart;
-        std::string op = extractOperator(token, opStart);
-        
-        if (!op.empty() && opStart > 0) {
-            std::string numPart = token.substr(0, opStart);
-            if (isNumber(numPart)) {
-                double num = std::stod(normalizeNumber(numPart));
-                stack_.push(num);
-                std::cout << formatNumber(num) << std::endl;
-                
-                // Execute operator via registry
-                const Operator* opObj = registry.getOperator(op);
-                if (opObj) {
-                    opObj->execute(*this);
-                } else if (op == "sto" || op == "rcl" || op == "[" || op == "]" || op == "@") {
-                    processToken(op);  // Handle special commands
-                }
-                return;
-            }
-        }
-    }
-    
-    // Check if it's a number
+    // 3) Special built-ins not in OperatorRegistry (sto/rcl/scale/fmt)
+    if (handleSpecial(token)) return;
+
+    // 4) Inline numeric + operator (e.g., "5+", "45tan")
+    if (handleInlineNumericOp(token)) return;
+
+    // 5) Plain number
     if (isNumber(token)) {
         double num = std::stod(normalizeNumber(token));
         stack_.push(num);
         std::cout << formatNumber(num) << std::endl;
         return;
     }
-    
-    // Check if it's a registered operator
-    const Operator* op = registry.getOperator(token);
-    if (op) {
+
+    // 6) Operator or variable
+    OperatorRegistry& registry = OperatorRegistry::instance();
+    if (const Operator* op = registry.getOperator(token)) {
         op->execute(*this);
         return;
     }
-    
-    // Check if it's a named variable
     if (hasVariable(token)) {
         double value = recallVariable(token);
         stack_.push(value);
         print(value);
         return;
     }
-    
-    // Unknown token
+
+    // 7) Unknown
     printError("Error: Invalid input '" + token + "'");
 }
 
@@ -1073,47 +794,27 @@ void RPNCalculator::loadConfig() {
 // READLINE COMPLETION
 // ============================================================================
 
-// Global list of completions for readline (populated on startup)
-std::vector<std::string> g_completions;
-
-// Initialize the completion list with all operators and commands
+// Initialize the completion list with all operators and commands (encapsulated in OperatorRegistry)
 static void initCompletions() {
-    if (!g_completions.empty()) return;  // Already initialized
-    
     OperatorRegistry& registry = OperatorRegistry::instance();
-    g_completions = registry.getAllNames();
-    
-    // Add built-in commands not in the operator registry
-    g_completions.push_back("sto");
-    g_completions.push_back("rcl");
-    g_completions.push_back("scale");
-    g_completions.push_back("fmt");
-    g_completions.push_back("quit");
-    g_completions.push_back("exit");
-    
-    // Add user-defined operators (already loaded into registry by loadConfig)
-    std::vector<std::string> userOps = registry.getNamesByCategory(OperatorCategory::USER);
-    for (const auto& name : userOps) {
-        g_completions.push_back(name);
-    }
-
-    // Sort for consistent completion order
-    std::sort(g_completions.begin(), g_completions.end());
+    registry.setBuiltinCompletions({"sto", "rcl", "scale", "fmt", "quit", "exit"});
 }
 
 // Readline completion generator - returns matches one at a time
 static char* completionGenerator(const char* text, int state) {
     static size_t listIndex;
     static size_t textLen;
+    static const std::vector<std::string>* compList;
     
     if (state == 0) {
         listIndex = 0;
         textLen = strlen(text);
+        compList = &OperatorRegistry::instance().completions();
     }
     
     // Find the next matching completion
-    while (listIndex < g_completions.size()) {
-        const std::string& name = g_completions[listIndex++];
+    while (listIndex < compList->size()) {
+        const std::string& name = (*compList)[listIndex++];
         if (name.compare(0, textLen, text) == 0) {
             return strdup(name.c_str());
         }
@@ -1205,4 +906,290 @@ void RPNCalculator::evaluate(const std::string& expr) {
     processLine(expr);
     // Print final result (top of stack) if not already printed
     // The result is typically already printed by the operators
+}
+
+// ============================================================================
+// PROCESS TOKEN HELPERS
+// ============================================================================
+
+bool RPNCalculator::handleMeta(const std::string& token) {
+    OperatorRegistry& registry = OperatorRegistry::instance();
+
+    // Variable assignment: name=
+    if (token.size() > 1 && token.back() == '=') {
+        std::string varName = token.substr(0, token.size() - 1);
+        if (stack_.empty()) {
+            printError("Error: Need value on stack for assignment");
+            return true;
+        }
+        double value = stack_.top();
+        if (!storeVariable(varName, value)) {
+            printError("Error: Cannot use '" + varName + "' as variable name (shadows operator)");
+            return true;
+        }
+        std::cout << varName << " = " << formatNumber(value) << std::endl;
+        return true;
+    }
+
+    // Named macro start: name[
+    if (token.size() > 1 && token.back() == '[') {
+        if (isRecording()) {
+            std::string current = recordingName_.empty() ? std::to_string(recordingSlot_) : recordingName_;
+            printError("Error: Already recording macro '" + current + "'");
+            return true;
+        }
+        std::string macroName = token.substr(0, token.size() - 1);
+        if (registry.hasOperator(macroName)) {
+            printError("Error: Cannot use '" + macroName + "' as macro name (shadows operator)");
+            return true;
+        }
+        recordingName_ = macroName;
+        recordingBuffer_.clear();
+        std::cout << "Recording macro '" << recordingName_ << "'..." << std::endl;
+        return true;
+    }
+
+    // User-defined operator start: name{
+    if (token.size() > 1 && token.back() == '{') {
+        if (isRecording()) {
+            std::string current = !definingOp_.empty() ? definingOp_ :
+                                  !recordingName_.empty() ? recordingName_ :
+                                  std::to_string(recordingSlot_);
+            printError("Error: Already recording '" + current + "'");
+            return true;
+        }
+        std::string opName = token.substr(0, token.size() - 1);
+        if (registry.hasOperator(opName)) {
+            const Operator* existing = registry.getOperator(opName);
+            if (existing->category != OperatorCategory::USER) {
+                printError("Error: Cannot use '" + opName + "' as operator name (shadows built-in)");
+                return true;
+            }
+        }
+        definingOp_ = opName;
+        definingBuffer_.clear();
+        std::cout << "Defining operator '" << definingOp_ << "'..." << std::endl;
+        return true;
+    }
+
+    // User-defined operator end: }
+    if (token == "}") {
+        if (definingOp_.empty()) {
+            printError("Error: Not defining an operator");
+            return true;
+        }
+        if (definingBuffer_.empty()) {
+            std::string name = definingOp_;
+            definingOp_.clear();
+            pendingOpDescription_.clear();
+            if (registry.hasOperator(name) && registry.getOperator(name)->category == OperatorCategory::USER) {
+                registry.removeOperator(name);
+                deleteUserOperator(name);
+                std::cout << "Deleted operator '" << name << "'" << std::endl;
+            }
+            return true;
+        }
+        std::string name = definingOp_;
+        std::vector<std::string> toks = definingBuffer_;
+        definingOp_.clear();
+        definingBuffer_.clear();
+        std::string desc = pendingOpDescription_.empty() ? "User-defined" : pendingOpDescription_;
+        pendingOpDescription_.clear();
+        if (registerUserOperator(name, desc, toks)) {
+            saveUserOperator(name, desc, toks);
+            std::cout << "Defined operator '" << name << "' (" << toks.size() << " commands, saved to ~/.rpn)" << std::endl;
+        } else {
+            printError("Error: Cannot define operator '" + name + "' (shadows built-in)");
+        }
+        return true;
+    }
+
+    // Named macro playback: name@
+    if (token.size() > 1 && token.back() == '@') {
+        if (isPlayingMacro_) {
+            printError("Error: Nested macro playback not supported");
+            return true;
+        }
+        std::string macroName = token.substr(0, token.size() - 1);
+        const auto* macro = getNamedMacro(macroName);
+        if (!macro) {
+            printError("Error: No macro named '" + macroName + "'");
+            return true;
+        }
+        isPlayingMacro_ = true;
+        for (const auto& t : *macro) {
+            std::cout << "  @" << macroName << ": " << t << std::endl;
+            processToken(t);
+        }
+        isPlayingMacro_ = false;
+        return true;
+    }
+
+    // Start recording with optional numeric slot on stack: [
+    if (token == "[") {
+        if (isRecording()) {
+            std::string current = recordingName_.empty() ? std::to_string(recordingSlot_) : recordingName_;
+            printError("Error: Already recording macro '" + current + "'");
+            return true;
+        }
+        int slot = 0;
+        if (!stack_.empty()) {
+            double slotDouble = stack_.top();
+            if (slotDouble != std::floor(slotDouble)) {
+                printError("Error: Macro slot must be an integer");
+                return true;
+            }
+            stack_.pop();
+            slot = static_cast<int>(slotDouble);
+        }
+        recordingSlot_ = slot;
+        recordingBuffer_.clear();
+        std::cout << "Recording macro " << recordingSlot_ << " (deprecated, use name[ syntax)..." << std::endl;
+        return true;
+    }
+
+    // Stop recording: ]
+    if (token == "]") {
+        if (!isRecording()) {
+            printError("Error: Not recording");
+            return true;
+        }
+        if (!recordingName_.empty()) {
+            namedMacros_[recordingName_] = recordingBuffer_;
+            std::cout << "Recorded macro '" << recordingName_ << "' (" << recordingBuffer_.size() << " commands)" << std::endl;
+            recordingName_.clear();
+        } else {
+            macros_[recordingSlot_] = recordingBuffer_;
+            std::cout << "Recorded macro " << recordingSlot_ << " (" << recordingBuffer_.size() << " commands)" << std::endl;
+            recordingSlot_ = -1;
+        }
+        recordingBuffer_.clear();
+        return true;
+    }
+
+    // Playback numeric-slot macro: @
+    if (token == "@") {
+        if (isPlayingMacro_) {
+            printError("Error: Nested macro playback not supported");
+            return true;
+        }
+        int slot = 0;
+        if (!stack_.empty()) {
+            double slotDouble = stack_.top();
+            if (slotDouble != std::floor(slotDouble)) {
+                printError("Error: Macro slot must be an integer");
+                return true;
+            }
+            stack_.pop();
+            slot = static_cast<int>(slotDouble);
+        }
+        auto it = macros_.find(slot);
+        if (it == macros_.end()) {
+            printError("Error: No macro in slot " + std::to_string(slot));
+            return true;
+        }
+        isPlayingMacro_ = true;
+        for (const auto& t : it->second) {
+            std::cout << "  @" << slot << ": " << t << std::endl;
+            processToken(t);
+        }
+        isPlayingMacro_ = false;
+        return true;
+    }
+
+    return false; // not handled
+}
+
+bool RPNCalculator::handleSpecial(const std::string& token) {
+    // sto
+    if (token == "sto") {
+        if (stack_.size() < 2) {
+            printError("Error: Need location and value on stack");
+            return true;
+        }
+        double locDouble = stack_.top();
+        stack_.pop();
+        if (locDouble != std::floor(locDouble)) {
+            stack_.push(locDouble);
+            printError("Error: Memory location must be an integer");
+            return true;
+        }
+        int location = static_cast<int>(locDouble);
+        double value = stack_.top();
+        memory_[location] = value;
+        std::cout << "(deprecated: use 'name=' instead)" << std::endl;
+        return true;
+    }
+
+    // rcl
+    if (token == "rcl") {
+        if (stack_.empty()) {
+            printError("Error: Need location on stack");
+            return true;
+        }
+        double locDouble = stack_.top();
+        if (locDouble != std::floor(locDouble)) {
+            printError("Error: Memory location must be an integer");
+            return true;
+        }
+        stack_.pop();
+        int location = static_cast<int>(locDouble);
+        double value = recallMemory(location);
+        stack_.push(value);
+        print(value);
+        std::cout << "(deprecated: use variable names instead)" << std::endl;
+        return true;
+    }
+
+    // scale
+    if (token == "scale") {
+        if (stack_.empty()) {
+            std::cout << "Current scale: " << scale_ << std::endl;
+        } else {
+            int newScale = static_cast<int>(stack_.top());
+            stack_.pop();
+            if (newScale >= 0 && newScale <= 15) {
+                scale_ = newScale;
+                std::cout << "Scale set to " << scale_ << std::endl;
+            } else {
+                std::cout << "Error: Scale must be between 0 and 15" << std::endl;
+                stack_.push(newScale);
+            }
+        }
+        return true;
+    }
+
+    // fmt
+    if (token == "fmt") {
+        localeFormatting_ = !localeFormatting_;
+        std::cout << "Locale formatting " << (localeFormatting_ ? "on" : "off") << std::endl;
+        return true;
+    }
+
+    return false;
+}
+
+bool RPNCalculator::handleInlineNumericOp(const std::string& token) {
+    if (token.size() <= 1) return false;
+
+    size_t opStart;
+    std::string op = extractOperator(token, opStart);
+    if (!op.empty() && opStart > 0) {
+        std::string numPart = token.substr(0, opStart);
+        if (isNumber(numPart)) {
+            double num = std::stod(normalizeNumber(numPart));
+            stack_.push(num);
+            std::cout << formatNumber(num) << std::endl;
+
+            OperatorRegistry& registry = OperatorRegistry::instance();
+            const Operator* opObj = registry.getOperator(op);
+            if (opObj) {
+                opObj->execute(*this);
+            } else if (op == "sto" || op == "rcl" || op == "[" || op == "]" || op == "@") {
+                processToken(op); // special commands
+            }
+            return true;
+        }
+    }
+    return false;
 }

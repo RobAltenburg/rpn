@@ -18,7 +18,7 @@
 
 #include <stack>
 #include <string>
-#include <map>
+#include <unordered_map>
 #include <vector>
 
 class RPNCalculator {
@@ -60,7 +60,6 @@ public:
     
     // Settings
     void setAngleMode(const std::string& mode);
-    std::string getAngleMode() const;
     void setScale(int s);
     int getScale() const;
     
@@ -76,13 +75,13 @@ private:
     enum class AngleMode { RADIANS, DEGREES, GRADIANS };
     
     std::stack<double> stack_;
-    std::map<int, double> memory_;
+    std::unordered_map<int, double> memory_;
     AngleMode angleMode_;
     int scale_;
     
     // Macro recording (can be loaded from .rpn config file)
-    std::map<int, std::vector<std::string>> macros_;  // slot -> recorded tokens (deprecated)
-    std::map<std::string, std::vector<std::string>> namedMacros_;  // name -> recorded tokens
+    std::unordered_map<int, std::vector<std::string>> macros_;  // slot -> recorded tokens (deprecated)
+    std::unordered_map<std::string, std::vector<std::string>> namedMacros_;  // name -> recorded tokens
     int recordingSlot_;           // -1 if not recording (numeric)
     std::string recordingName_;   // empty if not recording (named)
     std::vector<std::string> recordingBuffer_;
@@ -95,7 +94,7 @@ private:
     std::string pendingOpDescription_;    // description from trailing "..." on } line
     
     // Named variables
-    std::map<std::string, double> namedVariables_;
+    std::unordered_map<std::string, double> namedVariables_;
     
     // Helper methods
     void removeTrailingZeros();
@@ -117,7 +116,11 @@ private:
     void processLine(const std::string& line);
     void processStatement(const std::string& statement);
     void processToken(const std::string& token);
-    void executeOperator(const std::string& op);
+
+    // Decomposed handlers (refactor of processToken)
+    bool handleMeta(const std::string& token);      // assignment, macro/op start/stop, playback
+    bool handleSpecial(const std::string& token);   // sto, rcl, scale, fmt
+    bool handleInlineNumericOp(const std::string& token); // e.g., "45tan", "3+"
 };
 
 #endif // RPN_H

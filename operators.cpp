@@ -20,6 +20,7 @@
 #include <iomanip>
 #include <sstream>
 #include <cstdio>
+#include <algorithm>
 
 // Singleton instance
 OperatorRegistry& OperatorRegistry::instance() {
@@ -33,10 +34,14 @@ OperatorRegistry::OperatorRegistry() {
 
 void OperatorRegistry::registerOperator(const Operator& op) {
     operators_[op.name] = op;
+    names_len_desc_dirty_ = true;
+    completions_dirty_ = true;
 }
 
 void OperatorRegistry::removeOperator(const std::string& name) {
     operators_.erase(name);
+    names_len_desc_dirty_ = true;
+    completions_dirty_ = true;
 }
 
 bool OperatorRegistry::hasOperator(const std::string& name) const {
@@ -50,6 +55,7 @@ const Operator* OperatorRegistry::getOperator(const std::string& name) const {
 
 std::vector<std::string> OperatorRegistry::getAllNames() const {
     std::vector<std::string> names;
+    names.reserve(operators_.size());
     for (const auto& pair : operators_) {
         names.push_back(pair.first);
     }
@@ -92,6 +98,38 @@ const std::vector<OperatorCategory>& OperatorRegistry::allCategories() {
         OperatorCategory::USER
     };
     return categories;
+}
+
+const std::vector<std::string>& OperatorRegistry::getNamesSortedByLengthDesc() {
+    if (names_len_desc_dirty_) {
+        names_len_desc_cache_.clear();
+        names_len_desc_cache_.reserve(operators_.size());
+        for (const auto& kv : operators_) names_len_desc_cache_.push_back(kv.first);
+        std::sort(names_len_desc_cache_.begin(), names_len_desc_cache_.end(),
+                  [](const std::string& a, const std::string& b) {
+                      if (a.size() != b.size()) return a.size() > b.size();
+                      return a < b; // stable ordering for equal lengths
+                  });
+        names_len_desc_dirty_ = false;
+    }
+    return names_len_desc_cache_;
+}
+
+void OperatorRegistry::setBuiltinCompletions(const std::vector<std::string>& builtins) {
+    builtins_ = builtins;
+    completions_dirty_ = true;
+}
+
+const std::vector<std::string>& OperatorRegistry::completions() {
+    if (completions_dirty_) {
+        completions_cache_ = getAllNames();
+        // add builtins not in registry
+        completions_cache_.insert(completions_cache_.end(), builtins_.begin(), builtins_.end());
+        std::sort(completions_cache_.begin(), completions_cache_.end());
+        completions_cache_.erase(std::unique(completions_cache_.begin(), completions_cache_.end()), completions_cache_.end());
+        completions_dirty_ = false;
+    }
+    return completions_cache_;
 }
 
 void OperatorRegistry::initializeOperators() {
