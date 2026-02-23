@@ -23,18 +23,19 @@
 #include <vector>
 #include <algorithm>
 #include <cstdlib>
+#include <stdexcept>
 #include <locale>
 #include <clocale>
 #include <readline/readline.h>
 #include <readline/history.h>
 
-// (Completions are now managed by OperatorRegistry)
-
 // Constructor
 RPNCalculator::RPNCalculator()
-    : angleMode_(AngleMode::RADIANS), scale_(15), recordingSlot_(-1), recordingName_(""),
+    : angleMode_(AngleMode::RADIANS), scale_(15), callDepth_(0),
+      recordingSlot_(-1), recordingName_(""),
       isPlayingMacro_(false), definingOp_(""),
-      decimalSeparator_('.'), thousandsSeparator_(','), localeFormatting_(true) {
+      decimalSeparator_('.'), thousandsSeparator_(','), localeFormatting_(true),
+      outputPrefix_("\t→ ") {
     detectLocaleSeparators();
 }
 
@@ -77,7 +78,7 @@ void RPNCalculator::clearStack() {
 
 void RPNCalculator::printStack() const {
     if (stack_.empty()) {
-        std::cout << "0" << std::endl;
+        std::cout << outputPrefix_ << "0" << std::endl;
         return;
     }
 
@@ -91,7 +92,7 @@ void RPNCalculator::printStack() const {
 
     int level = 0;
     while (!reverse.empty()) {
-        std::cout << level++ << ": " << formatNumber(reverse.top()) << std::endl;
+        std::cout << outputPrefix_ << level++ << ": " << formatNumber(reverse.top()) << std::endl;
         reverse.pop();
     }
 }
@@ -240,9 +241,15 @@ bool RPNCalculator::registerUserOperator(const std::string& name, const std::str
     std::vector<std::string> capturedTokens = tokens;
     registry.registerOperator({name, OperatorType::NULLARY, OperatorCategory::USER,
         [capturedTokens](RPNCalculator& calc) {
+            if (calc.callDepth_ >= 100) {
+                calc.printError("Error: Maximum recursion depth exceeded");
+                return;
+            }
+            calc.callDepth_++;
             for (const auto& t : capturedTokens) {
                 calc.processToken(t);
             }
+            calc.callDepth_--;
         }, description});
     return true;
 }
@@ -276,13 +283,15 @@ void RPNCalculator::saveUserOperator(const std::string& name, const std::string&
     }
     lines.push_back(opLine);
 
-    // Write back
-    std::ofstream outFile(configPath);
+    // Write back atomically via temp file
+    std::string tempPath = configPath + ".tmp";
+    std::ofstream outFile(tempPath);
     if (outFile.is_open()) {
         for (const auto& l : lines) {
             outFile << l << "\n";
         }
         outFile.close();
+        std::rename(tempPath.c_str(), configPath.c_str());
     }
 }
 
@@ -305,12 +314,14 @@ void RPNCalculator::deleteUserOperator(const std::string& name) {
         inFile.close();
     }
 
-    std::ofstream outFile(configPath);
+    std::string tempPath = configPath + ".tmp";
+    std::ofstream outFile(tempPath);
     if (outFile.is_open()) {
         for (const auto& l : lines) {
             outFile << l << "\n";
         }
         outFile.close();
+        std::rename(tempPath.c_str(), configPath.c_str());
     }
 }
 
@@ -374,7 +385,7 @@ std::string RPNCalculator::formatNumber(double value) const {
 }
 
 void RPNCalculator::print(double value) const {
-    std::cout << formatNumber(value) << std::endl;
+    std::cout << outputPrefix_ << formatNumber(value) << std::endl;
 }
 
 void RPNCalculator::printError(const std::string& message) const {
@@ -420,6 +431,7 @@ bool RPNCalculator::isNumber(const std::string& token) const {
 
     bool hasDecimal = false;
     bool hasExponent = false;
+    bool hasDigit = false;
     int digitsSinceThousands = 0;
     bool hasThousandsSep = false;
 
@@ -439,7 +451,7 @@ bool RPNCalculator::isNumber(const std::string& token) const {
             hasThousandsSep = true;
             digitsSinceThousands = 0;
         } else if (c == 'e' || c == 'E') {
-            if (hasExponent) return false;
+            if (hasExponent || !hasDigit) return false;
             if (i == start) return false;
             // If we had thousands separators, last group must be 3 digits (unless we hit decimal)
             if (hasThousandsSep && !hasDecimal && digitsSinceThousands != 3) return false;
@@ -451,6 +463,7 @@ bool RPNCalculator::isNumber(const std::string& token) const {
             }
         } else if (isdigit(c)) {
             digitsSinceThousands++;
+            hasDigit = true;
         } else {
             return false;
         }
@@ -462,7 +475,7 @@ bool RPNCalculator::isNumber(const std::string& token) const {
         return false;
     }
 
-    return true;
+    return hasDigit;
 }
 
 // ============================================================================
@@ -522,7 +535,7 @@ std::string RPNCalculator::extractOperator(const std::string& token, size_t& opS
 }
 
 // ============================================================================
-// TOKEN PROCESSING (refactored into small handlers)
+// TOKEN PROCESSING
 // ============================================================================
 void RPNCalculator::processToken(const std::string& token) {
     if (token.empty()) return;
@@ -547,9 +560,13 @@ void RPNCalculator::processToken(const std::string& token) {
 
     // 5) Plain number
     if (isNumber(token)) {
-        double num = std::stod(normalizeNumber(token));
-        stack_.push(num);
-        std::cout << formatNumber(num) << std::endl;
+        try {
+            double num = std::stod(normalizeNumber(token));
+            stack_.push(num);
+            print(num);
+        } catch (const std::out_of_range&) {
+            printError("Error: Number out of range '" + token + "'");
+        }
         return;
     }
 
@@ -635,11 +652,11 @@ void RPNCalculator::processLine(const std::string& line) {
     // Handle empty line (Enter pressed) - duplicate top of stack or print 0
     if (line.empty() || line.find_first_not_of(" \t") == std::string::npos) {
         if (stack_.empty()) {
-            std::cout << "0" << std::endl;
+            print(0);
         } else {
             double top = stack_.top();
             stack_.push(top);
-            std::cout << formatNumber(top) << std::endl;
+            print(top);
         }
         removeTrailingZeros();
         return;
@@ -758,9 +775,58 @@ void RPNCalculator::loadConfig() {
                     registerUserOperator(name, description, tokens);
                 }
             }
+        } else if (cmd == "prefix") {
+            // prefix "<string>" - Set output prefix (quoted string)
+            // Read the rest of the line and extract quoted string
+            std::string rest;
+            std::getline(iss, rest);
+            // Trim leading whitespace
+            size_t start = rest.find_first_not_of(" \t");
+            if (start != std::string::npos) {
+                rest = rest.substr(start);
+                // Check for quotes
+                if (!rest.empty() && rest[0] == '"') {
+                    // Find closing quote
+                    size_t endQuote = rest.find('"', 1);
+                    if (endQuote != std::string::npos) {
+                        // Extract string between quotes, handling escape sequences
+                        std::string quoted = rest.substr(1, endQuote - 1);
+                        /* Process escape sequences: \t \n \\ \" */
+                        std::string processed;
+                        for (size_t i = 0; i < quoted.length(); ++i) {
+                            if (quoted[i] == '\\' && i + 1 < quoted.length()) {
+                                char next = quoted[i + 1];
+                                if (next == 't') {
+                                    processed += '\t';
+                                    ++i;
+                                } else if (next == 'n') {
+                                    processed += '\n';
+                                    ++i;
+                                } else if (next == '\\') {
+                                    processed += '\\';
+                                    ++i;
+                                } else if (next == '"') {
+                                    processed += '"';
+                                    ++i;
+                                } else {
+                                    processed += quoted[i];
+                                }
+                            } else {
+                                processed += quoted[i];
+                            }
+                        }
+                        outputPrefix_ = processed;
+                    }
+                } else {
+                    // No quotes - use rest of line as-is for backward compatibility
+                    outputPrefix_ = rest;
+                }
+            } else {
+                outputPrefix_ = "";  // Empty prefix
+            }
         } else if (cmd == "macro") {
             // macro <name|slot> <tokens...>
-            // Try to parse as int first for backwards compat
+            // Try to parse as int first for backwards compatibility
             std::string nameOrSlot;
             if (iss >> nameOrSlot) {
                 std::vector<std::string> tokens;
@@ -986,6 +1052,8 @@ bool RPNCalculator::handleMeta(const std::string& token) {
                 registry.removeOperator(name);
                 deleteUserOperator(name);
                 std::cout << "Deleted operator '" << name << "'" << std::endl;
+            } else {
+                printError("Error: Operator body is empty");
             }
             return true;
         }
@@ -1146,15 +1214,19 @@ bool RPNCalculator::handleSpecial(const std::string& token) {
         if (stack_.empty()) {
             std::cout << "Current scale: " << scale_ << std::endl;
         } else {
-            int newScale = static_cast<int>(stack_.top());
-            stack_.pop();
-            if (newScale >= 0 && newScale <= 15) {
-                scale_ = newScale;
-                std::cout << "Scale set to " << scale_ << std::endl;
-            } else {
-                std::cout << "Error: Scale must be between 0 and 15" << std::endl;
-                stack_.push(newScale);
+            double scaleVal = stack_.top();
+            if (scaleVal != std::floor(scaleVal)) {
+                printError("Error: Scale must be an integer");
+                return true;
             }
+            int newScale = static_cast<int>(scaleVal);
+            if (newScale < 0 || newScale > 15) {
+                printError("Error: Scale must be between 0 and 15");
+                return true;
+            }
+            stack_.pop();
+            scale_ = newScale;
+            std::cout << "Scale set to " << scale_ << std::endl;
         }
         return true;
     }
@@ -1177,16 +1249,25 @@ bool RPNCalculator::handleInlineNumericOp(const std::string& token) {
     if (!op.empty() && opStart > 0) {
         std::string numPart = token.substr(0, opStart);
         if (isNumber(numPart)) {
-            double num = std::stod(normalizeNumber(numPart));
+            double num;
+            try {
+                num = std::stod(normalizeNumber(numPart));
+            } catch (const std::out_of_range&) {
+                printError("Error: Number out of range '" + numPart + "'");
+                return true;
+            }
             stack_.push(num);
-            std::cout << formatNumber(num) << std::endl;
+            print(num);
 
             OperatorRegistry& registry = OperatorRegistry::instance();
             const Operator* opObj = registry.getOperator(op);
             if (opObj) {
                 opObj->execute(*this);
-            } else if (op == "sto" || op == "rcl" || op == "[" || op == "]" || op == "@") {
-                processToken(op); // special commands
+            } else if (op == "sto" || op == "rcl") {
+                // Call directly to avoid double-recording during macro capture
+                handleSpecial(op);
+            } else if (op == "[" || op == "]" || op == "@") {
+                handleMeta(op);
             }
             return true;
         }

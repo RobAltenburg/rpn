@@ -78,6 +78,7 @@ private:
     std::unordered_map<int, double> memory_;
     AngleMode angleMode_;
     int scale_;
+    int callDepth_;
     
     // Macro recording (can be loaded from .rpn config file)
     std::unordered_map<int, std::vector<std::string>> macros_;  // slot -> recorded tokens (deprecated)
@@ -108,6 +109,7 @@ private:
     char decimalSeparator_;
     char thousandsSeparator_;
     bool localeFormatting_;  // Format output with locale separators (on by default)
+    std::string outputPrefix_;  // Prefix for print() output (e.g., "\t→ ")
 
     // Formatting helper
     std::string formatNumber(double value) const;
