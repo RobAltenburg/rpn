@@ -47,9 +47,10 @@ public:
     bool hasVariable(const std::string& name) const;
     double recallVariable(const std::string& name) const;
     
-    // Named macros
+    // Temporary operators (session-only)
     bool hasNamedMacro(const std::string& name) const;
     const std::vector<std::string>* getNamedMacro(const std::string& name) const;
+    void executeMacro(const std::string& name);  // Execute temporary operator with autobind
 
     // User-defined operators
     bool registerUserOperator(const std::string& name, const std::string& description,
@@ -87,14 +88,14 @@ private:
     int scale_;
     int callDepth_;
     
-    // Macro recording (can be loaded from .rpn config file)
+    // Temporary operator recording (can be loaded from .rpn config file)
     std::unordered_map<int, std::vector<std::string>> macros_;  // slot -> recorded tokens (deprecated)
     std::unordered_map<std::string, std::vector<std::string>> namedMacros_;  // name -> recorded tokens
     int recordingSlot_;           // -1 if not recording (numeric)
     std::string recordingName_;   // empty if not recording (named)
     std::vector<std::string> recordingBuffer_;
     bool isRecording() const { return recordingSlot_ >= 0 || !recordingName_.empty() || !definingOp_.empty(); }
-    bool isPlayingMacro_;         // Prevent nested macro playback
+    bool isPlayingMacro_;         // Prevent nested temporary operator playback
 
     // User-defined operator recording
     std::string definingOp_;              // empty if not defining
@@ -128,7 +129,7 @@ private:
     void processToken(const std::string& token);
 
     // Decomposed handlers (refactor of processToken)
-    bool handleMeta(const std::string& token);      // assignment, macro/op start/stop, playback
+    bool handleMeta(const std::string& token);      // assignment, operator start/stop, playback
     bool handleSpecial(const std::string& token);   // sto, rcl, scale, fmt
     bool handleInlineNumericOp(const std::string& token); // e.g., "45tan", "3+"
 };

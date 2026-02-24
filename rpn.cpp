@@ -236,7 +236,7 @@ double RPNCalculator::recallVariable(const std::string& name) const {
 }
 
 // ============================================================================
-// NAMED MACRO OPERATIONS
+// TEMPORARY OPERATOR OPERATIONS
 // ============================================================================
 bool RPNCalculator::hasNamedMacro(const std::string& name) const {
     return namedMacros_.find(name) != namedMacros_.end();
@@ -248,6 +248,99 @@ const std::vector<std::string>* RPNCalculator::getNamedMacro(const std::string& 
         return &it->second;
     }
     return nullptr;
+}
+
+void RPNCalculator::executeMacro(const std::string& name) {
+    if (isPlayingMacro_) {
+        printError("Error: Nested temporary operator execution not supported");
+        return;
+    }
+    
+    const auto* macro = getNamedMacro(name);
+    if (!macro) {
+        printError("Error: No temporary operator named '" + name + "'");
+        return;
+    }
+    
+    isPlayingMacro_ = true;
+    
+    // Auto-bind x, y, z, t to top 4 stack positions (same as operators)
+    bool hadX = false, hadY = false, hadZ = false, hadT = false;
+    double oldX = 0.0, oldY = 0.0, oldZ = 0.0, oldT = 0.0;
+    
+    if (autobindXYZ_) {
+        // Save previous values if they exist
+        hadX = hasVariable("x");
+        hadY = hasVariable("y");
+        hadZ = hasVariable("z");
+        hadT = hasVariable("t");
+        oldX = hadX ? recallVariable("x") : 0.0;
+        oldY = hadY ? recallVariable("y") : 0.0;
+        oldZ = hadZ ? recallVariable("z") : 0.0;
+        oldT = hadT ? recallVariable("t") : 0.0;
+        
+        // Peek at top 4 values (x=top, y=second, z=third, t=fourth)
+        size_t size = stackSize();
+        if (size >= 1) {
+            double x = peekStack();
+            namedVariables_["x"] = x;
+        }
+        if (size >= 2) {
+            double topVal = popStack();
+            double y = peekStack();
+            pushStack(topVal);
+            namedVariables_["y"] = y;
+        }
+        if (size >= 3) {
+            double xVal = popStack();
+            double yVal = popStack();
+            double z = peekStack();
+            pushStack(yVal);
+            pushStack(xVal);
+            namedVariables_["z"] = z;
+        }
+        if (size >= 4) {
+            double xVal = popStack();
+            double yVal = popStack();
+            double zVal = popStack();
+            double t = peekStack();
+            pushStack(zVal);
+            pushStack(yVal);
+            pushStack(xVal);
+            namedVariables_["t"] = t;
+        }
+    }
+    
+            // Execute temporary operator body
+    for (const auto& t : *macro) {
+        processToken(t);
+    }
+    
+    // Restore previous x, y, z, t values (or remove if they didn't exist)
+    if (autobindXYZ_) {
+        if (hadX) {
+            namedVariables_["x"] = oldX;
+        } else {
+            namedVariables_.erase("x");
+        }
+        if (hadY) {
+            namedVariables_["y"] = oldY;
+        } else {
+            namedVariables_.erase("y");
+        }
+        if (hadZ) {
+            namedVariables_["z"] = oldZ;
+        } else {
+            namedVariables_.erase("z");
+        }
+        if (hadT) {
+            namedVariables_["t"] = oldT;
+        } else {
+            namedVariables_.erase("t");
+        }
+    }
+    
+    isPlayingMacro_ = false;
 }
 
 // ============================================================================
@@ -644,7 +737,7 @@ std::string RPNCalculator::extractOperator(const std::string& token, size_t& opS
 void RPNCalculator::processToken(const std::string& token) {
     if (token.empty()) return;
 
-    // 1) Meta commands (assignment, macro/op start/stop, playback)
+    // 1) Meta commands (assignment, operator start/stop, playback)
     if (handleMeta(token)) return;
 
     // 2) If recording, capture token
@@ -654,7 +747,7 @@ void RPNCalculator::processToken(const std::string& token) {
             definingBuffer_.push_back(token);
             return;
         } else {
-            // Macro recording: capture and execute (preserve existing behavior)
+            // Temporary operator recording: capture and execute (preserve existing behavior)
             recordingBuffer_.push_back(token);
         }
     }
@@ -691,10 +784,15 @@ void RPNCalculator::processToken(const std::string& token) {
         return;
     }
 
-    // 6) Operator or variable
+    // 6) Operator, temporary operator, or variable
     OperatorRegistry& registry = OperatorRegistry::instance();
     if (const Operator* op = registry.getOperator(token)) {
         op->execute(*this);
+        return;
+    }
+    // Check for temporary operator (no @ needed anymore)
+    if (hasNamedMacro(token)) {
+        executeMacro(token);
         return;
     }
     // Check named variables first (takes precedence over stack references in operator context)
@@ -994,7 +1092,7 @@ void RPNCalculator::loadConfig() {
                 outputPrefix_ = "";  // Empty prefix
             }
         } else if (cmd == "macro") {
-            // macro <name|slot> <tokens...>
+            // macro <name|slot> <tokens...> (deprecated keyword, use name[ ] syntax instead)
             // Try to parse as int first for backwards compatibility
             std::string nameOrSlot;
             if (iss >> nameOrSlot) {
@@ -1166,21 +1264,21 @@ bool RPNCalculator::handleMeta(const std::string& token) {
         return true;
     }
 
-    // Named macro start: name[
+    // Temporary operator start: name[
     if (token.size() > 1 && token.back() == '[') {
         if (isRecording()) {
             std::string current = recordingName_.empty() ? std::to_string(recordingSlot_) : recordingName_;
-            printError("Error: Already recording macro '" + current + "'");
+            printError("Error: Already recording temporary operator '" + current + "'");
             return true;
         }
         std::string macroName = token.substr(0, token.size() - 1);
         if (registry.hasOperator(macroName)) {
-            printError("Error: Cannot use '" + macroName + "' as macro name (shadows operator)");
+            printError("Error: Cannot use '" + macroName + "' as temporary operator name (shadows operator)");
             return true;
         }
         recordingName_ = macroName;
         recordingBuffer_.clear();
-        std::cout << "Recording macro '" << recordingName_ << "'..." << std::endl;
+        std::cout << "Defining temporary operator '" << recordingName_ << "'..." << std::endl;
         return true;
     }
 
@@ -1241,24 +1339,10 @@ bool RPNCalculator::handleMeta(const std::string& token) {
         return true;
     }
 
-    // Named macro playback: name@
+    // Temporary operator execution: name@ (backward compatibility - @ no longer required)
     if (token.size() > 1 && token.back() == '@') {
-        if (isPlayingMacro_) {
-            printError("Error: Nested macro playback not supported");
-            return true;
-        }
         std::string macroName = token.substr(0, token.size() - 1);
-        const auto* macro = getNamedMacro(macroName);
-        if (!macro) {
-            printError("Error: No macro named '" + macroName + "'");
-            return true;
-        }
-        isPlayingMacro_ = true;
-        for (const auto& t : *macro) {
-            std::cout << "  @" << macroName << ": " << t << std::endl;
-            processToken(t);
-        }
-        isPlayingMacro_ = false;
+        executeMacro(macroName);
         return true;
     }
 
@@ -1266,14 +1350,14 @@ bool RPNCalculator::handleMeta(const std::string& token) {
     if (token == "[") {
         if (isRecording()) {
             std::string current = recordingName_.empty() ? std::to_string(recordingSlot_) : recordingName_;
-            printError("Error: Already recording macro '" + current + "'");
+            printError("Error: Already recording temporary operator '" + current + "'");
             return true;
         }
         int slot = 0;
         if (!stack_.empty()) {
             double slotDouble = stack_.top();
             if (slotDouble != std::floor(slotDouble)) {
-                printError("Error: Macro slot must be an integer");
+                printError("Error: Temporary operator slot must be an integer");
                 return true;
             }
             stack_.pop();
@@ -1281,7 +1365,7 @@ bool RPNCalculator::handleMeta(const std::string& token) {
         }
         recordingSlot_ = slot;
         recordingBuffer_.clear();
-        std::cout << "Recording macro " << recordingSlot_ << " (deprecated, use name[ syntax)..." << std::endl;
+        std::cout << "Recording temporary operator " << recordingSlot_ << " (deprecated, use name[ syntax)..." << std::endl;
         return true;
     }
 
@@ -1293,28 +1377,28 @@ bool RPNCalculator::handleMeta(const std::string& token) {
         }
         if (!recordingName_.empty()) {
             namedMacros_[recordingName_] = recordingBuffer_;
-            std::cout << "Recorded macro '" << recordingName_ << "' (" << recordingBuffer_.size() << " commands)" << std::endl;
+            std::cout << "Defined temporary operator '" << recordingName_ << "' (" << recordingBuffer_.size() << " commands)" << std::endl;
             recordingName_.clear();
         } else {
             macros_[recordingSlot_] = recordingBuffer_;
-            std::cout << "Recorded macro " << recordingSlot_ << " (" << recordingBuffer_.size() << " commands)" << std::endl;
+            std::cout << "Defined temporary operator " << recordingSlot_ << " (" << recordingBuffer_.size() << " commands)" << std::endl;
             recordingSlot_ = -1;
         }
         recordingBuffer_.clear();
         return true;
     }
 
-    // Playback numeric-slot macro: @
+    // Execute numeric-slot temporary operator: @
     if (token == "@") {
         if (isPlayingMacro_) {
-            printError("Error: Nested macro playback not supported");
+            printError("Error: Nested temporary operator execution not supported");
             return true;
         }
         int slot = 0;
         if (!stack_.empty()) {
             double slotDouble = stack_.top();
             if (slotDouble != std::floor(slotDouble)) {
-                printError("Error: Macro slot must be an integer");
+                printError("Error: Temporary operator slot must be an integer");
                 return true;
             }
             stack_.pop();
@@ -1322,7 +1406,7 @@ bool RPNCalculator::handleMeta(const std::string& token) {
         }
         auto it = macros_.find(slot);
         if (it == macros_.end()) {
-            printError("Error: No macro in slot " + std::to_string(slot));
+            printError("Error: No temporary operator in slot " + std::to_string(slot));
             return true;
         }
         isPlayingMacro_ = true;
