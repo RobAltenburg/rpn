@@ -32,10 +32,11 @@
 // Constructor
 RPNCalculator::RPNCalculator()
     : angleMode_(AngleMode::RADIANS), scale_(15), callDepth_(0),
+      lastX_(0.0), stackLiftEnabled_(true),
       recordingSlot_(-1), recordingName_(""),
       isPlayingMacro_(false), definingOp_(""),
       decimalSeparator_('.'), thousandsSeparator_(','), localeFormatting_(true),
-      outputPrefix_("\t→ ") {
+      outputPrefix_("\t→ "), autobindXYZ_(true) {
     detectLocaleSeparators();
 }
 
@@ -90,10 +91,23 @@ void RPNCalculator::printStack() const {
         temp.pop();
     }
 
-    int level = 0;
+    int level = reverse.size() - 1;
     while (!reverse.empty()) {
-        std::cout << outputPrefix_ << level++ << ": " << formatNumber(reverse.top()) << std::endl;
+        std::string label;
+        if (autobindXYZ_ && level == 0) {
+            label = "x";
+        } else if (autobindXYZ_ && level == 1) {
+            label = "y";
+        } else if (autobindXYZ_ && level == 2) {
+            label = "z";
+        } else if (autobindXYZ_ && level == 3) {
+            label = "t";
+        } else {
+            label = std::to_string(level);
+        }
+        std::cout << outputPrefix_ << label << ": " << formatNumber(reverse.top()) << std::endl;
         reverse.pop();
+        level--;
     }
 }
 
@@ -146,6 +160,14 @@ void RPNCalculator::setScale(int s) {
     }
 }
 
+void RPNCalculator::setAutobind(bool enabled) {
+    autobindXYZ_ = enabled;
+}
+
+bool RPNCalculator::getAutobind() const {
+    return autobindXYZ_;
+}
+
 double RPNCalculator::toRadians(double angle) const {
     if (angleMode_ == AngleMode::DEGREES) {
         return angle * M_PI / 180.0;
@@ -191,6 +213,10 @@ bool RPNCalculator::storeVariable(const std::string& name, double value) {
     // Also check built-in commands
     if (name == "sto" || name == "rcl" || name == "scale" || name == "fmt" ||
         name == "q" || name == "quit" || name == "exit") {
+        return false;
+    }
+    // Prevent assignment to reserved operator-local variables (if autobind is enabled)
+    if (autobindXYZ_ && (name == "x" || name == "y" || name == "z" || name == "t")) {
         return false;
     }
     namedVariables_[name] = value;
@@ -246,9 +272,83 @@ bool RPNCalculator::registerUserOperator(const std::string& name, const std::str
                 return;
             }
             calc.callDepth_++;
+            
+            // Auto-bind x, y, z, t to top 4 stack positions (non-destructive peek) if enabled
+            bool hadX = false, hadY = false, hadZ = false, hadT = false;
+            double oldX = 0.0, oldY = 0.0, oldZ = 0.0, oldT = 0.0;
+            
+            if (calc.autobindXYZ_) {
+                // Save previous values if they exist
+                hadX = calc.hasVariable("x");
+                hadY = calc.hasVariable("y");
+                hadZ = calc.hasVariable("z");
+                hadT = calc.hasVariable("t");
+                oldX = hadX ? calc.recallVariable("x") : 0.0;
+                oldY = hadY ? calc.recallVariable("y") : 0.0;
+                oldZ = hadZ ? calc.recallVariable("z") : 0.0;
+                oldT = hadT ? calc.recallVariable("t") : 0.0;
+                
+                // Peek at top 4 values (x=top, y=second, z=third, t=fourth)
+                size_t size = calc.stackSize();
+                if (size >= 1) {
+                    double x = calc.peekStack();
+                    calc.namedVariables_["x"] = x;
+                }
+                if (size >= 2) {
+                    double topVal = calc.popStack();
+                    double y = calc.peekStack();
+                    calc.pushStack(topVal);
+                    calc.namedVariables_["y"] = y;
+                }
+                if (size >= 3) {
+                    double xVal = calc.popStack();
+                    double yVal = calc.popStack();
+                    double z = calc.peekStack();
+                    calc.pushStack(yVal);
+                    calc.pushStack(xVal);
+                    calc.namedVariables_["z"] = z;
+                }
+                if (size >= 4) {
+                    double xVal = calc.popStack();
+                    double yVal = calc.popStack();
+                    double zVal = calc.popStack();
+                    double t = calc.peekStack();
+                    calc.pushStack(zVal);
+                    calc.pushStack(yVal);
+                    calc.pushStack(xVal);
+                    calc.namedVariables_["t"] = t;
+                }
+            }
+            
+            // Execute operator body
             for (const auto& t : capturedTokens) {
                 calc.processToken(t);
             }
+            
+            // Restore previous x, y, z, t values (or remove if they didn't exist)
+            if (calc.autobindXYZ_) {
+                if (hadX) {
+                    calc.namedVariables_["x"] = oldX;
+                } else {
+                    calc.namedVariables_.erase("x");
+                }
+                if (hadY) {
+                    calc.namedVariables_["y"] = oldY;
+                } else {
+                    calc.namedVariables_.erase("y");
+                }
+                if (hadZ) {
+                    calc.namedVariables_["z"] = oldZ;
+                } else {
+                    calc.namedVariables_.erase("z");
+                }
+                if (hadT) {
+                    calc.namedVariables_["t"] = oldT;
+                } else {
+                    calc.namedVariables_.erase("t");
+                }
+            }
+            
             calc.callDepth_--;
         }, description});
     return true;
@@ -386,6 +486,10 @@ std::string RPNCalculator::formatNumber(double value) const {
 
 void RPNCalculator::print(double value) const {
     std::cout << outputPrefix_ << formatNumber(value) << std::endl;
+}
+
+void RPNCalculator::printStatus(const std::string& message) const {
+    std::cout << message << std::endl;
 }
 
 void RPNCalculator::printError(const std::string& message) const {
@@ -543,11 +647,14 @@ void RPNCalculator::processToken(const std::string& token) {
     // 1) Meta commands (assignment, macro/op start/stop, playback)
     if (handleMeta(token)) return;
 
-    // 2) If recording, capture token (preserve existing behavior: still execute below)
+    // 2) If recording, capture token
     if (isRecording()) {
         if (!definingOp_.empty()) {
+            // Operator definition: capture only, don't execute
             definingBuffer_.push_back(token);
+            return;
         } else {
+            // Macro recording: capture and execute (preserve existing behavior)
             recordingBuffer_.push_back(token);
         }
     }
@@ -558,12 +665,26 @@ void RPNCalculator::processToken(const std::string& token) {
     // 4) Inline numeric + operator (e.g., "5+", "45tan")
     if (handleInlineNumericOp(token)) return;
 
-    // 5) Plain number
+    // 5) ENTER key - HP-style stack lift and duplicate X
+    if (token == "enter" || token == "ENTER") {
+        if (!stack_.empty()) {
+            double x = stack_.top();
+            stack_.push(x);  // Duplicate X
+            print(x);
+        }
+        stackLiftEnabled_ = true;  // Enable lift for next number
+        return;
+    }
+    
+    // 6) Plain number
     if (isNumber(token)) {
         try {
             double num = std::stod(normalizeNumber(token));
+            // In this token-based system, always lift for separate number tokens
+            // (HP behavior is more nuanced for interactive digit entry)
             stack_.push(num);
             print(num);
+            stackLiftEnabled_ = true;  // Keep lift enabled for next operation
         } catch (const std::out_of_range&) {
             printError("Error: Number out of range '" + token + "'");
         }
@@ -576,11 +697,52 @@ void RPNCalculator::processToken(const std::string& token) {
         op->execute(*this);
         return;
     }
+    // Check named variables first (takes precedence over stack references in operator context)
     if (hasVariable(token)) {
         double value = recallVariable(token);
         stack_.push(value);
         print(value);
         return;
+    }
+    // Check for x, y, z, t special stack references (when autobind enabled)
+    if (autobindXYZ_ && (token == "x" || token == "y" || token == "z" || token == "t")) {
+        size_t size = stackSize();
+        if (token == "x" && size >= 1) {
+            double value = peekStack();
+            pushStack(value);
+            print(value);
+            return;
+        } else if (token == "y" && size >= 2) {
+            double x = popStack();
+            double y = peekStack();
+            pushStack(x);
+            pushStack(y);
+            print(y);
+            return;
+        } else if (token == "z" && size >= 3) {
+            double x = popStack();
+            double y = popStack();
+            double z = peekStack();
+            pushStack(y);
+            pushStack(x);
+            pushStack(z);
+            print(z);
+            return;
+        } else if (token == "t" && size >= 4) {
+            double x = popStack();
+            double y = popStack();
+            double z = popStack();
+            double t = peekStack();
+            pushStack(z);
+            pushStack(y);
+            pushStack(x);
+            pushStack(t);
+            print(t);
+            return;
+        } else {
+            printError("Error: Stack position '" + token + "' not available");
+            return;
+        }
     }
 
     // 7) Unknown
@@ -649,14 +811,12 @@ void RPNCalculator::processStatement(const std::string& statement) {
 }
 
 void RPNCalculator::processLine(const std::string& line) {
-    // Handle empty line (Enter pressed) - duplicate top of stack or print 0
+    // Handle empty line (Enter pressed) - just show current X (HP-style)
     if (line.empty() || line.find_first_not_of(" \t") == std::string::npos) {
         if (stack_.empty()) {
             print(0);
         } else {
-            double top = stack_.top();
-            stack_.push(top);
-            print(top);
+            print(stack_.top());
         }
         removeTrailingZeros();
         return;
@@ -728,6 +888,15 @@ void RPNCalculator::loadConfig() {
                     localeFormatting_ = false;
                 } else if (value == "on" || value == "1" || value == "true") {
                     localeFormatting_ = true;
+                }
+            }
+        } else if (cmd == "autobind") {
+            std::string value;
+            if (iss >> value) {
+                if (value == "off" || value == "0" || value == "false") {
+                    autobindXYZ_ = false;
+                } else if (value == "on" || value == "1" || value == "true") {
+                    autobindXYZ_ = true;
                 }
             }
         } else if (cmd == "var") {
@@ -993,7 +1162,7 @@ bool RPNCalculator::handleMeta(const std::string& token) {
             printError("Error: Cannot use '" + varName + "' as variable name (shadows operator)");
             return true;
         }
-        std::cout << varName << " = " << formatNumber(value) << std::endl;
+        std::cout << outputPrefix_ << varName << " = " << formatNumber(value) << std::endl;
         return true;
     }
 
@@ -1235,6 +1404,13 @@ bool RPNCalculator::handleSpecial(const std::string& token) {
     if (token == "fmt") {
         localeFormatting_ = !localeFormatting_;
         std::cout << "Locale formatting " << (localeFormatting_ ? "on" : "off") << std::endl;
+        return true;
+    }
+
+    // autobind
+    if (token == "autobind") {
+        autobindXYZ_ = !autobindXYZ_;
+        std::cout << "Auto-binding x,y,z,t " << (autobindXYZ_ ? "on" : "off") << std::endl;
         return true;
     }
 

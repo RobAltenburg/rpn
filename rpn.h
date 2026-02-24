@@ -62,6 +62,8 @@ public:
     void setAngleMode(const std::string& mode);
     void setScale(int s);
     int getScale() const;
+    void setAutobind(bool enabled);
+    bool getAutobind() const;
     
     // Angle conversions
     double toRadians(double angle) const;
@@ -69,7 +71,12 @@ public:
     
     // Output
     void print(double value) const;
+    void printStatus(const std::string& message) const;
     void printError(const std::string& message) const;
+    
+    // HP-style features (public for operator access)
+    double lastX_;           // LASTX register - saves last X before operations
+    bool stackLiftEnabled_;  // Stack lift flag - controls if next number lifts stack
     
 private:
     enum class AngleMode { RADIANS, DEGREES, GRADIANS };
@@ -110,6 +117,7 @@ private:
     char thousandsSeparator_;
     bool localeFormatting_;  // Format output with locale separators (on by default)
     std::string outputPrefix_;  // Prefix for print() output (e.g., "\t→ ")
+    bool autobindXYZ_;  // Auto-bind x, y, z in user operators (on by default)
 
     // Formatting helper
     std::string formatNumber(double value) const;

@@ -21,6 +21,7 @@
 #include <unordered_map>
 #include <stack>
 #include <vector>
+#include <optional>
 
 // Forward declaration
 class RPNCalculator;
@@ -100,6 +101,21 @@ private:
     void registerStackOperations();
     void registerUnitConversions();
     void registerMiscellaneous();
+
+    // Registration helpers to reduce boilerplate
+    using UnaryFn = std::function<double(RPNCalculator&, double)>;
+    using BinaryFn = std::function<double(RPNCalculator&, double, double)>;
+
+    // Simple: pop, compute, push, print
+    void registerUnaryOp(const std::string& name, OperatorCategory cat,
+                         UnaryFn fn, const std::string& desc);
+    void registerBinaryOp(const std::string& name, OperatorCategory cat,
+                          BinaryFn fn, const std::string& desc);
+    // Guarded: same as simple but checks NaN/infinity and restores operands on error
+    void registerGuardedUnaryOp(const std::string& name, OperatorCategory cat,
+                                UnaryFn fn, const std::string& desc);
+    void registerGuardedBinaryOp(const std::string& name, OperatorCategory cat,
+                                 BinaryFn fn, const std::string& desc);
 };
 
 #endif // OPERATORS_H

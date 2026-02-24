@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -std=c++11 -Wall -Wextra -O2
+CXXFLAGS = -std=c++17 -Wall -Wextra -O2
 LDFLAGS = -lreadline
 TARGET = rpn
 SRCS = main.cpp rpn.cpp operators.cpp
