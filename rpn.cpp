@@ -31,8 +31,8 @@
 
 // Constructor
 RPNCalculator::RPNCalculator()
-    : angleMode_(AngleMode::RADIANS), scale_(15), callDepth_(0),
-      lastX_(0.0), stackLiftEnabled_(true),
+    : lastX_(0.0), stackLiftEnabled_(true),
+      angleMode_(AngleMode::RADIANS), scale_(15), callDepth_(0),
       recordingName_(""),
       isPlayingMacro_(false), definingOp_(""),
       decimalSeparator_('.'), thousandsSeparator_(','), localeFormatting_(true),
@@ -1017,7 +1017,7 @@ void RPNCalculator::loadConfig() {
             angleMode_ = AngleMode::RADIANS;
         } else if (cmd == "grd") {
             angleMode_ = AngleMode::GRADIANS;
-        } else if (cmd == "scale") {
+        } else if (cmd == "scale" || cmd == "fix") {
             int s;
             if (iss >> s && s >= 0 && s <= 15) {
                 scale_ = s;
@@ -1534,25 +1534,43 @@ bool RPNCalculator::handleSpecial(const std::string& token) {
         return true;
     }
 
-    // scale
-    if (token == "scale") {
+    // scale / fix (HP-style alias) - always requires argument from stack
+    if (token == "scale" || token == "fix") {
         if (stack_.empty()) {
-            std::cout << "Current scale: " << scale_ << std::endl;
-        } else {
-            double scaleVal = stack_.top();
-            if (scaleVal != std::floor(scaleVal)) {
-                printError("Error: Scale must be an integer");
-                return true;
-            }
-            int newScale = static_cast<int>(scaleVal);
-            if (newScale < 0 || newScale > 15) {
-                printError("Error: Scale must be between 0 and 15");
-                return true;
-            }
-            stack_.pop();
-            scale_ = newScale;
-            std::cout << "Scale set to " << scale_ << std::endl;
+            printError("Error: FIX requires a value (0-15) on the stack");
+            return true;
         }
+        double scaleVal = stack_.top();
+        if (scaleVal != std::floor(scaleVal)) {
+            printError("Error: FIX must be an integer");
+            return true;
+        }
+        int newScale = static_cast<int>(scaleVal);
+        if (newScale < 0 || newScale > 15) {
+            printError("Error: FIX must be between 0 and 15");
+            return true;
+        }
+        stack_.pop();
+        scale_ = newScale;
+        std::cout << "FIX " << scale_ << std::endl;
+        return true;
+    }
+    
+    // show/config - display current settings
+    if (token == "show" || token == "config") {
+        std::cout << "Configuration:" << std::endl;
+        std::cout << "  FIX: " << scale_ << " (decimal places)" << std::endl;
+        std::cout << "  Angle mode: ";
+        if (angleMode_ == AngleMode::DEGREES) {
+            std::cout << "degrees";
+        } else if (angleMode_ == AngleMode::RADIANS) {
+            std::cout << "radians";
+        } else {
+            std::cout << "gradians";
+        }
+        std::cout << std::endl;
+        std::cout << "  Locale formatting: " << (localeFormatting_ ? "on" : "off") << std::endl;
+        std::cout << "  Auto-bind x,y,z,t: " << (autobindXYZ_ ? "on" : "off") << std::endl;
         return true;
     }
 

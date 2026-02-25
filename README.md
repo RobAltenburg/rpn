@@ -18,12 +18,13 @@ A reverse Polish notation (RPN) calculator with user-defined operators
 - **Logarithmic**: ln, log, log2, logb (arbitrary base), exp
 - **Rounding**: floor, ceil, round, trunc
 - **Other Math**: sqrt, abs, neg, inv, gamma, !
+- **Random**: rand (generates random number 0-1 with precision matching FIX)
 - **Constants**: pi, e, phi (golden ratio)
 - **Stack Commands**: p(rint), c(clear), d(uplicate), r/swap (reverse top 2), pop, sum, prod, copy
 - **Memory**: x= (save top of stack to x), x (recall top of stack),  sto, rcl (deprecated)
 - **User-defined Operators**: name{ } (saved), name[ ] (temporary), name (execute)
 - **Angle Modes**: deg (degrees), rad (radians), grd (gradians)
-- **Settings**: scale (set output precision), fmt (toggle localized number formats)
+- **Settings**: show/config (display settings), fix (set decimal places 0-15), scale (deprecated alias for fix), fmt (toggle localized number formats)
 - **Help**: help or ? (list all operators)
 - **Empty Stack Handling**: Operations on empty stack automatically use 0 for missing operands
 - **Trailing Zeros Removal**: Zeros at the bottom of the stack are automatically removed
@@ -77,8 +78,8 @@ The calculator loads configuration from `.rpn` in the current directory, or `~/.
 # Set angle mode
 deg           # or rad, grd
 
-# Set precision (0-15)
-scale 10
+# Set decimal places (0-15)
+fix 10
 
 # User-defined operators (saved to config)
 operator double Double value : 2 *

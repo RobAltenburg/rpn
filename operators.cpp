@@ -21,6 +21,7 @@
 #include <sstream>
 #include <cstdio>
 #include <algorithm>
+#include <random>
 
 // Singleton instance
 OperatorRegistry& OperatorRegistry::instance() {
@@ -744,7 +745,11 @@ void OperatorRegistry::registerMiscellaneous() {
         std::cout << "  ]     - End definition" << std::endl;
         std::cout << "  name  - Execute operator (temporary or saved)" << std::endl;
         std::cout << "  name@ - Execute operator (backward compatibility)" << std::endl;
-        std::cout << "\nSpecial commands: scale, fmt, autobind, q/quit/exit" << std::endl;
+        std::cout << "\nSpecial commands: show, fix, fmt, autobind, q/quit/exit" << std::endl;
+        std::cout << "  show/config - Display current configuration settings" << std::endl;
+        std::cout << "  fix - Set decimal places (0-15, requires value on stack)" << std::endl;
+        std::cout << "  scale - Deprecated alias for fix" << std::endl;
+        std::cout << "  fmt - Toggle locale number formatting" << std::endl;
         std::cout << "  autobind - Toggle x,y,z,t auto-binding (on by default)" << std::endl;
         std::cout << "\nTiered help: help_<category>" << std::endl;
         std::cout << "  help_arith, help_trig, help_hyper, help_log, help_stack, help_conv, help_misc, help_user" << std::endl;
@@ -803,4 +808,30 @@ void OperatorRegistry::registerMiscellaneous() {
     registerOperator({"help_user", OperatorType::NULLARY, OperatorCategory::MISCELLANEOUS, [categoryHelp](RPNCalculator&) {
         categoryHelp(OperatorCategory::USER);
     }, "Help for user-defined operators"});
+    
+    // Random number generator (0 to 1 with precision matching scale)
+    registerOperator({"rand", OperatorType::NULLARY, OperatorCategory::MISCELLANEOUS, [](RPNCalculator& calc) {
+        static std::random_device rd;
+        static std::mt19937 gen(rd());
+        
+        int scale = calc.getScale();
+        
+        if (scale == 0) {
+            // For scale 0, return 0 or 1
+            std::uniform_int_distribution<> dis(0, 1);
+            double result = static_cast<double>(dis(gen));
+            calc.pushStack(result);
+            calc.print(result);
+        } else {
+            // Generate integer in range [0, 10^scale] then divide by 10^scale
+            long long max_val = 1;
+            for (int i = 0; i < scale; ++i) {
+                max_val *= 10;
+            }
+            std::uniform_int_distribution<long long> dis(0, max_val);
+            double result = static_cast<double>(dis(gen)) / static_cast<double>(max_val);
+            calc.pushStack(result);
+            calc.print(result);
+        }
+    }, "Random number [0,1] with precision matching scale setting"});
 }
