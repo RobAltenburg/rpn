@@ -33,10 +33,10 @@
 RPNCalculator::RPNCalculator()
     : angleMode_(AngleMode::RADIANS), scale_(15), callDepth_(0),
       lastX_(0.0), stackLiftEnabled_(true),
-      recordingSlot_(-1), recordingName_(""),
+      recordingName_(""),
       isPlayingMacro_(false), definingOp_(""),
       decimalSeparator_('.'), thousandsSeparator_(','), localeFormatting_(true),
-      outputPrefix_("\t→ "), autobindXYZ_(true) {
+      outputPrefix_("\t→ "), autobindXYZ_(true), currentToken_("") {
     detectLocaleSeparators();
 }
 
@@ -78,8 +78,19 @@ void RPNCalculator::clearStack() {
 }
 
 void RPNCalculator::printStack() const {
+    // Strip $op and $value placeholders from prefix for stack display
+    std::string prefix = outputPrefix_;
+    size_t pos = prefix.find("$op");
+    if (pos != std::string::npos) {
+        prefix.replace(pos, 3, "");
+    }
+    pos = prefix.find("$value");
+    if (pos != std::string::npos) {
+        prefix.replace(pos, 6, "");
+    }
+    
     if (stack_.empty()) {
-        std::cout << outputPrefix_ << "0" << std::endl;
+        std::cout << prefix << "0" << std::endl;
         return;
     }
 
@@ -105,7 +116,7 @@ void RPNCalculator::printStack() const {
         } else {
             label = std::to_string(level);
         }
-        std::cout << outputPrefix_ << label << ": " << formatNumber(reverse.top()) << std::endl;
+        std::cout << prefix << label << ": " << formatNumber(reverse.top()) << std::endl;
         reverse.pop();
         level--;
     }
@@ -578,7 +589,33 @@ std::string RPNCalculator::formatNumber(double value) const {
 }
 
 void RPNCalculator::print(double value) const {
-    std::cout << outputPrefix_ << formatNumber(value) << std::endl;
+    std::string output = outputPrefix_;
+    std::string formattedValue = formatNumber(value);
+    
+    // Replace $op placeholder with current operator if present
+    size_t pos = output.find("$op");
+    if (pos != std::string::npos) {
+        // Don't show operator if it's a plain number (would duplicate the value)
+        std::string opText = "";
+        if (!currentToken_.empty() && !isNumber(currentToken_)) {
+            opText = currentToken_;
+        }
+        output.replace(pos, 3, opText);  // Replace "$op" with operator name
+    }
+    
+    // Replace $value placeholder with the formatted value
+    pos = output.find("$value");
+    if (pos != std::string::npos) {
+        output.replace(pos, 6, formattedValue);  // Replace "$value" with formatted number
+        std::cout << output << std::endl;
+    } else {
+        // No $value placeholder, append value at end (backward compatibility)
+        std::cout << output << formattedValue << std::endl;
+    }
+}
+
+void RPNCalculator::print(double value, const std::string& token) const {
+    std::cout << outputPrefix_ << token << " → " << formatNumber(value) << std::endl;
 }
 
 void RPNCalculator::printStatus(const std::string& message) const {
@@ -716,7 +753,7 @@ std::string RPNCalculator::extractOperator(const std::string& token, size_t& opS
     }
 
     // Then check special commands not in registry
-    static const char* specials[] = {"sto", "rcl", "[", "]", "@", nullptr};
+    static const char* specials[] = {"sto", "rcl", nullptr};
     for (int i = 0; specials[i] != nullptr; ++i) {
         const std::string op = specials[i];
         if (token.length() >= op.length()) {
@@ -736,27 +773,38 @@ std::string RPNCalculator::extractOperator(const std::string& token, size_t& opS
 // ============================================================================
 void RPNCalculator::processToken(const std::string& token) {
     if (token.empty()) return;
+    
+    // Set current token for output annotation
+    currentToken_ = token;
 
     // 1) Meta commands (assignment, operator start/stop, playback)
-    if (handleMeta(token)) return;
+    if (handleMeta(token)) {
+        currentToken_.clear();
+        return;
+    }
 
     // 2) If recording, capture token
     if (isRecording()) {
         if (!definingOp_.empty()) {
-            // Operator definition: capture only, don't execute
+            // Operator definition: capture and execute for interactive feedback
             definingBuffer_.push_back(token);
-            return;
         } else {
-            // Temporary operator recording: capture and execute (preserve existing behavior)
+            // Temporary operator recording: capture and execute
             recordingBuffer_.push_back(token);
         }
     }
 
     // 3) Special built-ins not in OperatorRegistry (sto/rcl/scale/fmt)
-    if (handleSpecial(token)) return;
+    if (handleSpecial(token)) {
+        currentToken_.clear();
+        return;
+    }
 
     // 4) Inline numeric + operator (e.g., "5+", "45tan")
-    if (handleInlineNumericOp(token)) return;
+    if (handleInlineNumericOp(token)) {
+        currentToken_.clear();
+        return;
+    }
 
     // 5) ENTER key - HP-style stack lift and duplicate X
     if (token == "enter" || token == "ENTER") {
@@ -844,6 +892,7 @@ void RPNCalculator::processToken(const std::string& token) {
     }
 
     // 7) Unknown
+    currentToken_.clear();
     printError("Error: Invalid input '" + token + "'");
 }
 
@@ -1092,30 +1141,16 @@ void RPNCalculator::loadConfig() {
                 outputPrefix_ = "";  // Empty prefix
             }
         } else if (cmd == "macro") {
-            // macro <name|slot> <tokens...> (deprecated keyword, use name[ ] syntax instead)
-            // Try to parse as int first for backwards compatibility
-            std::string nameOrSlot;
-            if (iss >> nameOrSlot) {
+            // macro <name> <tokens...> (deprecated keyword, use name[ ] syntax instead)
+            std::string name;
+            if (iss >> name) {
                 std::vector<std::string> tokens;
                 std::string token;
                 while (iss >> token) {
                     tokens.push_back(token);
                 }
                 if (!tokens.empty()) {
-                    // Check if it's a numeric slot (deprecated)
-                    bool isNumeric = true;
-                    for (char c : nameOrSlot) {
-                        if (!isdigit(c) && c != '-') {
-                            isNumeric = false;
-                            break;
-                        }
-                    }
-                    if (isNumeric) {
-                        int slot = std::stoi(nameOrSlot);
-                        macros_[slot] = tokens;
-                    } else {
-                        namedMacros_[nameOrSlot] = tokens;
-                    }
+                    namedMacros_[name] = tokens;
                 }
             }
         }
@@ -1188,10 +1223,8 @@ void RPNCalculator::run() {
         if (isRecording()) {
             if (!definingOp_.empty()) {
                 prompt = "def:" + definingOp_ + "> ";
-            } else if (!recordingName_.empty()) {
-                prompt = "rec:" + recordingName_ + "> ";
             } else {
-                prompt = "rec:" + std::to_string(recordingSlot_) + "> ";
+                prompt = "rec:" + recordingName_ + "> ";
             }
         } else {
             prompt = std::to_string(stack_.size()) + "> ";
@@ -1218,11 +1251,18 @@ void RPNCalculator::run() {
             // Discard any in-progress recording
             if (isRecording()) {
                 std::cout << "Recording discarded" << std::endl;
-                recordingSlot_ = -1;
                 recordingName_.clear();
                 recordingBuffer_.clear();
                 definingOp_.clear();
                 definingBuffer_.clear();
+                
+                // Clear x,y,z,t snapshots if they were set during recording
+                if (autobindXYZ_) {
+                    namedVariables_.erase("x");
+                    namedVariables_.erase("y");
+                    namedVariables_.erase("z");
+                    namedVariables_.erase("t");
+                }
             }
             break;
         }
@@ -1267,8 +1307,8 @@ bool RPNCalculator::handleMeta(const std::string& token) {
     // Temporary operator start: name[
     if (token.size() > 1 && token.back() == '[') {
         if (isRecording()) {
-            std::string current = recordingName_.empty() ? std::to_string(recordingSlot_) : recordingName_;
-            printError("Error: Already recording temporary operator '" + current + "'");
+            std::string current = !definingOp_.empty() ? definingOp_ : recordingName_;
+            printError("Error: Already recording '" + current + "'");
             return true;
         }
         std::string macroName = token.substr(0, token.size() - 1);
@@ -1278,6 +1318,36 @@ bool RPNCalculator::handleMeta(const std::string& token) {
         }
         recordingName_ = macroName;
         recordingBuffer_.clear();
+        
+        // Bind x,y,z,t to current stack positions as read-only snapshots during recording
+        if (autobindXYZ_) {
+            size_t size = stackSize();
+            if (size >= 1) {
+                namedVariables_["x"] = peekStack();
+            }
+            if (size >= 2) {
+                double topVal = popStack();
+                namedVariables_["y"] = peekStack();
+                pushStack(topVal);
+            }
+            if (size >= 3) {
+                double xVal = popStack();
+                double yVal = popStack();
+                namedVariables_["z"] = peekStack();
+                pushStack(yVal);
+                pushStack(xVal);
+            }
+            if (size >= 4) {
+                double xVal = popStack();
+                double yVal = popStack();
+                double zVal = popStack();
+                namedVariables_["t"] = peekStack();
+                pushStack(zVal);
+                pushStack(yVal);
+                pushStack(xVal);
+            }
+        }
+        
         std::cout << "Defining temporary operator '" << recordingName_ << "'..." << std::endl;
         return true;
     }
@@ -1285,9 +1355,7 @@ bool RPNCalculator::handleMeta(const std::string& token) {
     // User-defined operator start: name{
     if (token.size() > 1 && token.back() == '{') {
         if (isRecording()) {
-            std::string current = !definingOp_.empty() ? definingOp_ :
-                                  !recordingName_.empty() ? recordingName_ :
-                                  std::to_string(recordingSlot_);
+            std::string current = !definingOp_.empty() ? definingOp_ : recordingName_;
             printError("Error: Already recording '" + current + "'");
             return true;
         }
@@ -1301,6 +1369,36 @@ bool RPNCalculator::handleMeta(const std::string& token) {
         }
         definingOp_ = opName;
         definingBuffer_.clear();
+        
+        // Bind x,y,z,t to current stack positions as read-only snapshots during recording
+        if (autobindXYZ_) {
+            size_t size = stackSize();
+            if (size >= 1) {
+                namedVariables_["x"] = peekStack();
+            }
+            if (size >= 2) {
+                double topVal = popStack();
+                namedVariables_["y"] = peekStack();
+                pushStack(topVal);
+            }
+            if (size >= 3) {
+                double xVal = popStack();
+                double yVal = popStack();
+                namedVariables_["z"] = peekStack();
+                pushStack(yVal);
+                pushStack(xVal);
+            }
+            if (size >= 4) {
+                double xVal = popStack();
+                double yVal = popStack();
+                double zVal = popStack();
+                namedVariables_["t"] = peekStack();
+                pushStack(zVal);
+                pushStack(yVal);
+                pushStack(xVal);
+            }
+        }
+        
         std::cout << "Defining operator '" << definingOp_ << "'..." << std::endl;
         return true;
     }
@@ -1315,6 +1413,15 @@ bool RPNCalculator::handleMeta(const std::string& token) {
             std::string name = definingOp_;
             definingOp_.clear();
             pendingOpDescription_.clear();
+            
+            // Clear the x,y,z,t snapshots used during recording
+            if (autobindXYZ_) {
+                namedVariables_.erase("x");
+                namedVariables_.erase("y");
+                namedVariables_.erase("z");
+                namedVariables_.erase("t");
+            }
+            
             if (registry.hasOperator(name) && registry.getOperator(name)->category == OperatorCategory::USER) {
                 registry.removeOperator(name);
                 deleteUserOperator(name);
@@ -1330,6 +1437,15 @@ bool RPNCalculator::handleMeta(const std::string& token) {
         definingBuffer_.clear();
         std::string desc = pendingOpDescription_.empty() ? "User-defined" : pendingOpDescription_;
         pendingOpDescription_.clear();
+        
+        // Clear the x,y,z,t snapshots used during recording
+        if (autobindXYZ_) {
+            namedVariables_.erase("x");
+            namedVariables_.erase("y");
+            namedVariables_.erase("z");
+            namedVariables_.erase("t");
+        }
+        
         if (registerUserOperator(name, desc, toks)) {
             saveUserOperator(name, desc, toks);
             std::cout << "Defined operator '" << name << "' (" << toks.size() << " commands, saved to ~/.rpn)" << std::endl;
@@ -1346,28 +1462,6 @@ bool RPNCalculator::handleMeta(const std::string& token) {
         return true;
     }
 
-    // Start recording with optional numeric slot on stack: [
-    if (token == "[") {
-        if (isRecording()) {
-            std::string current = recordingName_.empty() ? std::to_string(recordingSlot_) : recordingName_;
-            printError("Error: Already recording temporary operator '" + current + "'");
-            return true;
-        }
-        int slot = 0;
-        if (!stack_.empty()) {
-            double slotDouble = stack_.top();
-            if (slotDouble != std::floor(slotDouble)) {
-                printError("Error: Temporary operator slot must be an integer");
-                return true;
-            }
-            stack_.pop();
-            slot = static_cast<int>(slotDouble);
-        }
-        recordingSlot_ = slot;
-        recordingBuffer_.clear();
-        std::cout << "Recording temporary operator " << recordingSlot_ << " (deprecated, use name[ syntax)..." << std::endl;
-        return true;
-    }
 
     // Stop recording: ]
     if (token == "]") {
@@ -1379,50 +1473,28 @@ bool RPNCalculator::handleMeta(const std::string& token) {
             namedMacros_[recordingName_] = recordingBuffer_;
             std::cout << "Defined temporary operator '" << recordingName_ << "' (" << recordingBuffer_.size() << " commands)" << std::endl;
             recordingName_.clear();
+            
+            // Clear the x,y,z,t snapshots used during recording
+            if (autobindXYZ_) {
+                namedVariables_.erase("x");
+                namedVariables_.erase("y");
+                namedVariables_.erase("z");
+                namedVariables_.erase("t");
+            }
         } else {
-            macros_[recordingSlot_] = recordingBuffer_;
-            std::cout << "Defined temporary operator " << recordingSlot_ << " (" << recordingBuffer_.size() << " commands)" << std::endl;
-            recordingSlot_ = -1;
+            printError("Error: Not recording a named temporary operator");
+            return true;
         }
         recordingBuffer_.clear();
         return true;
     }
 
-    // Execute numeric-slot temporary operator: @
-    if (token == "@") {
-        if (isPlayingMacro_) {
-            printError("Error: Nested temporary operator execution not supported");
-            return true;
-        }
-        int slot = 0;
-        if (!stack_.empty()) {
-            double slotDouble = stack_.top();
-            if (slotDouble != std::floor(slotDouble)) {
-                printError("Error: Temporary operator slot must be an integer");
-                return true;
-            }
-            stack_.pop();
-            slot = static_cast<int>(slotDouble);
-        }
-        auto it = macros_.find(slot);
-        if (it == macros_.end()) {
-            printError("Error: No temporary operator in slot " + std::to_string(slot));
-            return true;
-        }
-        isPlayingMacro_ = true;
-        for (const auto& t : it->second) {
-            std::cout << "  @" << slot << ": " << t << std::endl;
-            processToken(t);
-        }
-        isPlayingMacro_ = false;
-        return true;
-    }
 
     return false; // not handled
 }
 
 bool RPNCalculator::handleSpecial(const std::string& token) {
-    // sto
+    // sto (numeric slots deprecated)
     if (token == "sto") {
         if (stack_.size() < 2) {
             printError("Error: Need location and value on stack");
@@ -1442,7 +1514,7 @@ bool RPNCalculator::handleSpecial(const std::string& token) {
         return true;
     }
 
-    // rcl
+    // rcl (numeric slots deprecated)
     if (token == "rcl") {
         if (stack_.empty()) {
             printError("Error: Need location on stack");

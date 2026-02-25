@@ -72,6 +72,7 @@ public:
     
     // Output
     void print(double value) const;
+    void print(double value, const std::string& token) const;  // Print with operation name
     void printStatus(const std::string& message) const;
     void printError(const std::string& message) const;
     
@@ -89,12 +90,10 @@ private:
     int callDepth_;
     
     // Temporary operator recording (can be loaded from .rpn config file)
-    std::unordered_map<int, std::vector<std::string>> macros_;  // slot -> recorded tokens (deprecated)
     std::unordered_map<std::string, std::vector<std::string>> namedMacros_;  // name -> recorded tokens
-    int recordingSlot_;           // -1 if not recording (numeric)
     std::string recordingName_;   // empty if not recording (named)
     std::vector<std::string> recordingBuffer_;
-    bool isRecording() const { return recordingSlot_ >= 0 || !recordingName_.empty() || !definingOp_.empty(); }
+    bool isRecording() const { return !recordingName_.empty() || !definingOp_.empty(); }
     bool isPlayingMacro_;         // Prevent nested temporary operator playback
 
     // User-defined operator recording
@@ -119,6 +118,9 @@ private:
     bool localeFormatting_;  // Format output with locale separators (on by default)
     std::string outputPrefix_;  // Prefix for print() output (e.g., "\t→ ")
     bool autobindXYZ_;  // Auto-bind x, y, z in user operators (on by default)
+    
+    // Output tracking
+    std::string currentToken_;  // Token currently being executed (for output annotation)
 
     // Formatting helper
     std::string formatNumber(double value) const;

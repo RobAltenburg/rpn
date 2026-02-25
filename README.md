@@ -33,31 +33,23 @@ A reverse Polish notation (RPN) calculator with user-defined operators
 ## Memory Operations
 
 ```
-25 x=   # Stores 25 in named variable x, 25 stays on stack
-x       # Recalls value from named variable x
+25 i=   # Stores 25 in named variable j, 25 stays on stack
+j       # Recalls value from named variable j
 ```
 
-### Store (sto)
-Stores the top value in a numbered memory location. The value remains on the stack.
+### Auto-binding x, y, z, t
+When autobind is enabled (default), x/y/z/t are automatically bound to the top 4 stack positions:
 
 ```
-25 1 sto    # Stores 25 in memory location 1, 25 stays on stack
+square{ x x * }       # x is bound to top of stack
+5 square              # Result: 25
 ```
 
-Memory locations must be integers. Non-integer locations produce an error without altering the stack.
-
-### Recall (rcl)
-Retrieves a value from memory and pushes it onto the stack.
-
-```
-1 rcl       # Recalls value from memory location 1
-```
-
-Recalling from an uninitialized location returns 0.
 
 ## User-defined Operators
 
 Define custom operators for reuse.
+When autobind is enabled, the x,y,z,t, values are persistent during the operation
 
 ### Saved Operators
 Use `{ }` to define operators that are saved to `~/.rpn`:
@@ -75,24 +67,6 @@ triple[ 3 * ]         # Define 'triple' operator (temporary)
 5 triple              # Execute: 5 * 3 = 15
 ```
 
-### Auto-binding x, y, z, t
-When autobind is enabled (default), x/y/z/t are automatically bound to the top 4 stack positions:
-
-```
-square{ x x * }       # x is bound to top of stack
-5 square              # Result: 25
-```
-
-### Legacy Numeric Slots (deprecated)
-Old syntax using numeric slots still works:
-
-```
-[ 2 * ]               # Record to slot 0
-5 0 @                 # Execute slot 0
-```
-
-The prompt shows `def:name>` or `rec:name>` while defining. Quitting discards in-progress definitions.
-
 ## Configuration File
 
 The calculator loads configuration from `.rpn` in the current directory, or `~/.rpn` if no local config exists.
@@ -106,15 +80,17 @@ deg           # or rad, grd
 # Set precision (0-15)
 scale 10
 
-# Preset memory locations
-mem 0 3.14159265359   # π
-mem 1 2.71828182846   # e
-mem 10 42             # Answer to everything
-
 # User-defined operators (saved to config)
 operator double Double value : 2 *
 operator square Square value : d *
 
 # Legacy: temporary operators using 'macro' keyword (deprecated)
 macro temp_double 2 *
+
+# Customize output format
+# Use $op to show operation name, $value for the result
+prefix "\t$op → "           # Shows: "    + → 8" for "5 3 +"
+prefix "\t→ $op "           # Shows: "    → + 8" for "5 3 +"
+prefix "\t→ $value $op"   # Shows: "    → 8 +" for "5 3 +"
+prefix "\t→ "               # Default: shows just "    → 8"
 ```
