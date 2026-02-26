@@ -258,6 +258,22 @@ void OperatorRegistry::registerArithmetic() {
     
     registerGuardedBinaryOp("^", OperatorCategory::ARITHMETIC,
         [](RPNCalculator&, double y, double x) { return std::pow(y, x); }, "Power");
+    
+    // Percent change: ((x - y) / y) * 100
+    registerOperator({"%ch", OperatorType::BINARY, OperatorCategory::ARITHMETIC, [](RPNCalculator& calc) {
+        double x = calc.popStack();
+        double y = calc.popStack();
+        if (y == 0) {
+            calc.printError("Error: Percent change from zero");
+            calc.pushStack(y);
+            calc.pushStack(x);
+            return;
+        }
+        calc.lastX_ = x;
+        double result = ((x - y) / y) * 100.0;
+        calc.pushStack(result);
+        calc.print(result);
+    }, "Percent change ((x-y)/y * 100)"});
 }
 
 // ============================================================================
@@ -622,7 +638,7 @@ void OperatorRegistry::registerUnitConversions() {
 // ============================================================================
 void OperatorRegistry::registerMiscellaneous() {
     // TODO: Implement additional HP calculator features:
-    // - Percentage operations: %CH (percent change), %T (percent of total)
+    // - Percentage operations: %T (percent of total)
     // - Statistical functions: Σ+ Σ- mean stddev linear regression
     // - Display format: FIX SCI ENG for fixed/scientific/engineering notation
     // - Quiet mode: option to not print after every operation
@@ -645,7 +661,7 @@ void OperatorRegistry::registerMiscellaneous() {
     registerUnaryOp("neg", OperatorCategory::MISCELLANEOUS,
         [](RPNCalculator&, double x) { return -x; }, "Negation");
     registerUnaryOp("chs", OperatorCategory::MISCELLANEOUS,
-        [](RPNCalculator&, double x) { return -x; }, "Change sign (HP alias for neg)");
+        [](RPNCalculator&, double x) { return -x; }, "Change sign (alias for neg)");
     
     // Square (x^2)
     registerUnaryOp("sq", OperatorCategory::MISCELLANEOUS,
@@ -655,7 +671,7 @@ void OperatorRegistry::registerMiscellaneous() {
     registerOperator({"lastx", OperatorType::NULLARY, OperatorCategory::MISCELLANEOUS, [](RPNCalculator& calc) {
         calc.pushStack(calc.lastX_);
         calc.print(calc.lastX_);
-    }, "Recall last X (HP LASTX register)"});
+    }, "Recall last X (last displayed value before an operation)"});
     
     // Inverse (1/x)
     registerOperator({"inv", OperatorType::UNARY, OperatorCategory::MISCELLANEOUS, [](RPNCalculator& calc) {
@@ -748,7 +764,6 @@ void OperatorRegistry::registerMiscellaneous() {
         std::cout << "\nSpecial commands: show, fix, fmt, autobind, q/quit/exit" << std::endl;
         std::cout << "  show/config - Display current configuration settings" << std::endl;
         std::cout << "  fix - Set decimal places (0-15, requires value on stack)" << std::endl;
-        std::cout << "  scale - Deprecated alias for fix" << std::endl;
         std::cout << "  fmt - Toggle locale number formatting" << std::endl;
         std::cout << "  autobind - Toggle x,y,z,t auto-binding (on by default)" << std::endl;
         std::cout << "\nTiered help: help_<category>" << std::endl;

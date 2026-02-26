@@ -771,8 +771,11 @@ std::string RPNCalculator::extractOperator(const std::string& token, size_t& opS
 // ============================================================================
 // TOKEN PROCESSING
 // ============================================================================
-void RPNCalculator::processToken(const std::string& token) {
+void RPNCalculator::processToken(std::string token) {
     if (token.empty()) return;
+    
+    // Normalize to lowercase for case-insensitive matching
+    std::transform(token.begin(), token.end(), token.begin(), ::tolower);
     
     // Set current token for output annotation
     currentToken_ = token;
@@ -807,7 +810,7 @@ void RPNCalculator::processToken(const std::string& token) {
     }
 
     // 5) ENTER key - HP-style stack lift and duplicate X
-    if (token == "enter" || token == "ENTER") {
+    if (token == "enter") {
         if (!stack_.empty()) {
             double x = stack_.top();
             stack_.push(x);  // Duplicate X
@@ -1051,6 +1054,7 @@ void RPNCalculator::loadConfig() {
             std::string name;
             double val;
             if (iss >> name >> val) {
+                std::transform(name.begin(), name.end(), name.begin(), ::tolower);
                 // Silently ignore if it would shadow an operator
                 storeVariable(name, val);
             }
@@ -1058,6 +1062,7 @@ void RPNCalculator::loadConfig() {
             // operator <name> <description words...> : <tokens...>
             std::string name;
             if (iss >> name) {
+                std::transform(name.begin(), name.end(), name.begin(), ::tolower);
                 // Read the rest of the line to split on ':'
                 std::string rest;
                 std::getline(iss, rest);
@@ -1144,6 +1149,7 @@ void RPNCalculator::loadConfig() {
             // macro <name> <tokens...> (deprecated keyword, use name[ ] syntax instead)
             std::string name;
             if (iss >> name) {
+                std::transform(name.begin(), name.end(), name.begin(), ::tolower);
                 std::vector<std::string> tokens;
                 std::string token;
                 while (iss >> token) {
@@ -1607,7 +1613,10 @@ bool RPNCalculator::handleInlineNumericOp(const std::string& token) {
                 return true;
             }
             stack_.push(num);
+            currentToken_ = numPart;  // Show as plain number (no $op annotation)
             print(num);
+
+            currentToken_ = op;  // Show just the operator name for $op
 
             OperatorRegistry& registry = OperatorRegistry::instance();
             const Operator* opObj = registry.getOperator(op);

@@ -128,7 +128,7 @@ private:
     // Processing
     void processLine(const std::string& line);
     void processStatement(const std::string& statement);
-    void processToken(const std::string& token);
+    void processToken(std::string token);
 
     // Decomposed handlers (refactor of processToken)
     bool handleMeta(const std::string& token);      // assignment, operator start/stop, playback
