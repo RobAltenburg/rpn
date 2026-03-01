@@ -22,6 +22,7 @@ void printUsage(const char* progname) {
     std::cerr << "Usage: " << progname << " [-e expression]" << std::endl;
     std::cerr << "  -e expression  Evaluate expression and exit" << std::endl;
     std::cerr << "  -h, --help     Show this help" << std::endl;
+    std::cerr << "  -v, --version  Show version" << std::endl;
     std::cerr << "  (no args)      Start interactive mode" << std::endl;
 }
 
@@ -33,6 +34,9 @@ int main(int argc, char* argv[]) {
         calc.run();
     } else if (argc == 2 && (std::strcmp(argv[1], "-h") == 0 || std::strcmp(argv[1], "--help") == 0)) {
         printUsage(argv[0]);
+        return 0;
+    } else if (argc == 2 && (std::strcmp(argv[1], "-v") == 0 || std::strcmp(argv[1], "--version") == 0)) {
+        std::cout << "rpn " << RPN_VERSION << std::endl;
         return 0;
     } else if (argc == 3 && std::strcmp(argv[1], "-e") == 0) {
         // -e expression: evaluate and exit

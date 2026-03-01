@@ -1221,7 +1221,7 @@ void RPNCalculator::run() {
     // Disable default filename completion
     rl_bind_key('\t', rl_complete);
     
-    std::cout << "RPN Calculator (type 'help' or '?' for commands, 'q' to quit)" << std::endl;
+    std::cout << "RPN Calculator v" << RPN_VERSION << " (type 'help' or '?' for commands, 'q' to quit)" << std::endl;
     
     while (true) {
         // Build prompt with recording indicator

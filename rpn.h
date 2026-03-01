@@ -21,6 +21,8 @@
 #include <unordered_map>
 #include <vector>
 
+constexpr const char* RPN_VERSION = "0.1-beta";
+
 class RPNCalculator {
 public:
     RPNCalculator();
